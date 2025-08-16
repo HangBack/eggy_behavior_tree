@@ -40,10 +40,10 @@ class BehaviorTreeEditor {
         this.setupEventListeners();
         this.setupKeyboardShortcuts();
         this.setupAutoSave();
-        
+
         // 加载上次使用的文件
         this.loadLastUsedFile();
-        
+
         this.updateStatus();
         this.autoSave();
         this.setupPositionToggle();
@@ -103,7 +103,9 @@ class BehaviorTreeEditor {
 
         // 监听装饰器类型选择变化
         document.getElementById('decorator-type').addEventListener('change', () => {
-            if (this.selectedNode && this.selectedNode.type === 'DECORATOR') {
+            if (this.selectedNode && decoratorNames.indexOf(this.selectedNode.type) !== 'DECORATOR') {
+                const decoratorType = document.getElementById('decorator-type').value;
+                this.selectedNode.decoratorType = decoratorType;
                 this.handleDecoratorTypeChange();
             }
         });
@@ -1723,10 +1725,14 @@ class BehaviorTreeEditor {
     }
 
     generateLuaCode(node) {
-        let code = `return {\n    type = BT.NodeType.${node.type},\n    name = "${node.name}"`;
+        let code = `return {\n    type = BT.NodeType.${node.decoratorType ?? node.type},\n    name = "${node.name}"`;
 
         if (node.func) code += `,\n    func = ${this.formatFunctionOutput(node.func)}`;
         if (node.policy) code += `,\n    policy = BT.ParallelPolicy.${node.policy}`;
+        if (node.timeoutDuration) code += `,\n    duration = ${node.timeoutDuration}`;
+        if (node.cooldownDuration) code += `,\n    duration = ${node.cooldownDuration}`;
+        if (node.repeaterCount) code += `,\n    max_retries = ${node.repeaterCount}`;
+        if (node.retryCount) code += `,\n    count = ${node.retryCount}`;
 
         // 获取子节点（已经按正确顺序排列）
         const children = this.connections
@@ -1824,11 +1830,11 @@ class BehaviorTreeEditor {
             nextNodeId: this.nextNodeId,
             lastModified: new Date().toISOString()
         };
-        
+
         // 保存文件数据
         const storageKey = this.currentFileName ? `behaviorTree_${this.currentFileName}` : 'behaviorTree';
         localStorage.setItem(storageKey, JSON.stringify(data));
-        
+
         // 记录当前使用的文件
         this.recordLastUsedFile();
     }
@@ -2750,7 +2756,7 @@ class BehaviorTreeEditor {
             }
             this.renameTriggeredByKey = false;
         });
-        
+
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -2985,7 +2991,7 @@ class BehaviorTreeEditor {
     loadLastUsedFile() {
         // 从localStorage获取上次使用的文件名
         const lastUsedFile = localStorage.getItem('lastUsedFile');
-        
+
         if (lastUsedFile) {
             // 检查该文件是否还存在
             const storageKey = lastUsedFile === '默认文件' ? 'behaviorTree' : `behaviorTree_${lastUsedFile}`;
@@ -3000,7 +3006,7 @@ class BehaviorTreeEditor {
                 localStorage.removeItem('lastUsedFile');
             }
         }
-        
+
         // 没有上次使用的文件或文件不存在，加载默认文件
         this.currentFileName = null;
         this.loadFromStorage();

@@ -1,10 +1,10 @@
-require "ClassUtils"
-require "behavior.tree"
+require "lib.behavior.tree"
 
 ---@class AIConfig
 AIConfig = {}
 
 -- 根据配置构建行为树
+---@return BehaviorTree
 function AIConfig.build_tree(config)
     local builder = BT.TreeBuilder:new() --[[@as TreeBuilder]]
     local node = AIConfig.build_node(builder, config) --[[@as BaseNode]]
