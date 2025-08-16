@@ -103,7 +103,7 @@ class BehaviorTreeEditor {
 
         // 监听装饰器类型选择变化
         document.getElementById('decorator-type').addEventListener('change', () => {
-            if (this.selectedNode && decoratorNames.indexOf(this.selectedNode.type) !== 'DECORATOR') {
+            if (this.selectedNode && this.selectedNode.type === 'DECORATOR') {
                 const decoratorType = document.getElementById('decorator-type').value;
                 this.selectedNode.decoratorType = decoratorType;
                 this.handleDecoratorTypeChange();
