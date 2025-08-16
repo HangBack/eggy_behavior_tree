@@ -1,3 +1,4 @@
+require "ClassUtils"
 require "behavior.tree"
 
 ---@class AIConfig
