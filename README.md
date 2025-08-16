@@ -60,7 +60,7 @@ end
 
 ```lua
 --- main.lua
-require "behavior"
+require "behavior.config"
 
 local tree = AIConfig.build_tree(require "behavior_tree_test") ---这个文件是我们先前导出的文件
 tree:tick()
