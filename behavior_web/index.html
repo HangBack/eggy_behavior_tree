@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>行为树流程在线编辑器</title>
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+    <div class="toolbar">
+        <div class="toolbar-left">
+            <h1 class="toolbar-title">行为树流程编辑器</h1>
+            <div class="toolbar-divider"></div>
+            <div class="toolbar-group">
+                <button class="toolbar-btn" id="undo-btn" disabled>
+                    <span class="icon">↶</span>
+                    <span>撤回</span>
+                </button>
+                <button class="toolbar-btn" id="redo-btn" disabled>
+                    <span class="icon">↷</span>
+                    <span>恢复</span>
+                </button>
+                <div class="history-dropdown">
+                    <button class="toolbar-btn" id="history-btn">
+                        <span class="icon">📋</span>
+                        <span>历史</span>
+                    </button>
+                    <div class="history-list" id="history-list">
+                        <div class="history-item">
+                            <div class="history-item-title">暂无操作历史</div>
+                            <div class="history-item-time">请开始编辑行为树</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="toolbar-center">
+            <div class="current-file-info">
+                <span class="icon">📄</span>
+                <span id="current-file-display">默认文件</span>
+            </div>
+        </div>
+        
+        <div class="toolbar-right">
+            <div class="toolbar-group">
+                <button class="toolbar-btn" id="new-file-btn">
+                    <span class="icon">📄</span>
+                    <span>新建</span>
+                </button>
+                <button class="toolbar-btn" id="file-manager-btn">
+                    <span class="icon">📁</span>
+                    <span>文件</span>
+                </button>
+            </div>
+            <div class="toolbar-divider"></div>
+            <button class="toolbar-btn" id="settings-btn">
+                <span class="icon">⚙️</span>
+                <span>设置</span>
+            </button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="panel left-panel">
+            <h2 class="panel-title">节点类型</h2>
+            <div class="node-types">
+                <div class="node-type" data-type="SEQUENCE">
+                    <h3>顺序节点</h3>
+                    <p>顺序执行所有子节点，直到一个失败</p>
+                </div>
+                <div class="node-type" data-type="FALLBACK">
+                    <h3>选择节点</h3>
+                    <p>顺序执行子节点，直到一个成功</p>
+                </div>
+                <div class="node-type" data-type="PARALLEL">
+                    <h3>并行节点</h3>
+                    <p>并行执行所有子节点</p>
+                </div>
+                <div class="node-type" data-type="CONDITION">
+                    <h3>条件节点</h3>
+                    <p>条件判断节点</p>
+                </div>
+                <div class="node-type" data-type="ACTION">
+                    <h3>行为节点</h3>
+                    <p>执行具体行为</p>
+                </div>
+                <div class="node-type" data-type="DECORATOR">
+                    <h3>装饰节点</h3>
+                    <p>装饰节点，只有一个子节点</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="canvas-container" id="canvas-container">
+            <svg class="connections" id="connections"></svg>
+            <div class="canvas" id="canvas"></div>
+            
+            <!-- 垃圾桶删除区域 -->
+            <div class="trash-zone" id="trash-zone">
+                <span class="trash-icon">🗑️</span>
+                <span class="trash-text">删除</span>
+            </div>
+            
+            <div class="canvas-toolbar">
+                <div class="tool-item active" id="select-tool" title="选择工具 (1)">
+                    <span>✏️</span>
+                </div>
+                <div class="tool-item" id="connect-tool" title="连线工具 (2)">
+                    <span>🔗</span>
+                </div>
+                <div class="tool-item" id="delete-tool" title="删除工具 (3)">
+                    <span>🗑️</span>
+                </div>
+                <div class="tool-item" id="disconnect-tool" title="取消连接 (4)">
+                    <span>✂️</span>
+                </div>
+            </div>
+            
+            <div class="zoom-controls">
+                <div class="zoom-btn" id="zoom-in">+</div>
+                <div class="zoom-btn" id="zoom-out">-</div>
+                <div class="zoom-btn" id="reset-view">↺</div>
+                <div class="zoom-btn" id="center-nodes" title="定位到节点">📍</div>
+            </div>
+            
+            <div class="status-bar">
+                缩放: <span id="zoom-level">100%</span> | 节点数: <span id="node-count">0</span>
+            </div>
+            
+            <div class="auto-save-indicator" id="auto-save">已自动保存</div>
+        </div>
+        
+        <div class="panel right-panel" id="property-panel">
+            <h2 class="panel-title">节点属性</h2>
+            <div id="property-form">
+                <div class="form-group">
+                    <label for="node-type">节点类型</label>
+                    <input type="text" id="node-type" disabled>
+                </div>
+                <div class="form-group" id="decorator-type-group" style="display: none;">
+                    <label for="decorator-type">装饰器类型</label>
+                    <select id="decorator-type">
+                        <option value="">-- 选择装饰器类型 --</option>
+                        <option value="INVERTER">反转器 (Inverter)</option>
+                        <option value="REPEATER">重复器 (Repeater)</option>
+                        <option value="TIMEOUT">超时器 (Timeout)</option>
+                        <option value="RETRY">重试器 (Retry)</option>
+                        <option value="COOLDOWN">冷却器 (Cooldown)</option>
+                        <option value="ALWAYS_SUCCESS">总是成功 (AlwaysSuccess)</option>
+                        <option value="ALWAYS_FAILURE">总是失败 (AlwaysFailure)</option>
+                        <option value="UNTIL_SUCCESS">直到成功 (UntilSuccess)</option>
+                        <option value="UNTIL_FAILURE">直到失败 (UntilFailure)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="node-name">节点名称</label>
+                    <input type="text" id="node-name" placeholder="输入节点名称">
+                </div>
+                <div class="form-group">
+                    <label id="position-toggle" style="cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                        <span id="position-arrow" style="transition: transform 0.2s ease;">▶</span>
+                        节点位置
+                    </label>
+                    <div id="position-content" style="display: none; margin-top: 8px;">
+                        <div style="display: flex; gap: 10px;">
+                            <div style="flex: 1;">
+                                <label for="node-x" style="font-size: 0.9rem; margin-bottom: 3px;">X坐标</label>
+                                <input type="number" id="node-x" placeholder="X" style="text-align: center;">
+                            </div>
+                            <div style="flex: 1;">
+                                <label for="node-y" style="font-size: 0.9rem; margin-bottom: 3px;">Y坐标</label>
+                                <input type="number" id="node-y" placeholder="Y" style="text-align: center;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group" id="function-group">
+                    <label for="node-function">行为函数</label>
+                    <input type="text" id="node-function" placeholder="输入函数名称">
+                </div>
+                <div class="form-group" id="policy-group">
+                    <label for="node-policy">并行策略</label>
+                    <select id="node-policy">
+                        <option value="">-- 选择策略 --</option>
+                        <option value="SUCCEED_ON_ONE">成功一个即完成</option>
+                        <option value="SUCCEED_ON_ALL">全部成功才完成</option>
+                    </select>
+                </div>
+                
+                <!-- 装饰器特定属性 -->
+                <div class="form-group" id="repeater-count-group" style="display: none;">
+                    <label for="repeater-count">重复次数</label>
+                    <input type="number" id="repeater-count" placeholder="输入重复次数 (-1表示无限重复)" min="-1">
+                </div>
+                <div class="form-group" id="timeout-duration-group" style="display: none;">
+                    <label for="timeout-duration">超时时间(秒)</label>
+                    <input type="number" id="timeout-duration" placeholder="输入超时时间" min="0" step="0.1">
+                </div>
+                <div class="form-group" id="retry-count-group" style="display: none;">
+                    <label for="retry-count">最大重试次数</label>
+                    <input type="number" id="retry-count" placeholder="输入最大重试次数" min="1">
+                </div>
+                <div class="form-group" id="cooldown-duration-group" style="display: none;">
+                    <label for="cooldown-duration">冷却时间(秒)</label>
+                    <input type="number" id="cooldown-duration" placeholder="输入冷却时间" min="0" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label for="node-comment">注释说明</label>
+                    <textarea id="node-comment" placeholder="添加节点注释说明"></textarea>
+                </div>
+                
+                <div class="action-buttons">
+                    <button class="btn btn-secondary" id="delete-node">删除节点</button>
+                </div>
+            </div>
+            
+            <div class="export-section">
+                <h2 class="panel-title">导出行为树</h2>
+                <div class="action-buttons">
+                    <button class="btn btn-primary" id="export-lua">导出Lua</button>
+                    <button class="btn btn-primary" id="export-json">导出JSON</button>
+                    <button class="btn btn-secondary" id="import-json">导入JSON</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 设置模态框 -->
+    <div class="settings-modal" id="settings-modal">
+        <div class="settings-content">
+            <div class="settings-header">
+                <h2>设置</h2>
+                <span class="settings-close" id="settings-close">&times;</span>
+            </div>
+            <div class="settings-body">
+                <div class="setting-group">
+                    <label for="function-prefix">行为函数路径前缀</label>
+                    <input type="text" id="function-prefix" placeholder="例如: actions、behaviors" />
+                    <div class="setting-description">
+                        设置后，输入函数名"test"将输出为"require 'actions.test'"
+                    </div>
+                </div>
+            </div>
+            <div class="settings-footer">
+                <button class="btn btn-primary" id="save-settings">保存设置</button>
+                <button class="btn btn-secondary" id="cancel-settings">取消</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="notification" id="notification">操作成功！</div>
+    <input type="file" id="file-input" class="hidden-file-input" accept=".json">
+    
+    <!-- 文件管理模态框 -->
+    <div class="file-manager-modal" id="file-manager-modal">
+        <div class="file-manager-content">
+            <div class="file-manager-header">
+                <h2>文件管理</h2>
+                <span class="file-manager-close" id="file-manager-close">&times;</span>
+            </div>
+            <div class="file-manager-body">
+                <div class="file-manager-toolbar">
+                    <div class="current-file-info">
+                        当前文件: <span id="current-file-name">默认文件</span>
+                    </div>
+                </div>
+                
+                <div class="file-list-container">
+                    <div class="file-list-header">
+                        <div>文件名</div>
+                        <div></div>
+                        <div style="text-align:right;">修改时间</div>
+                    </div>
+                    <div class="file-list" id="file-list">
+                        <!-- 文件列表动态生成 -->
+                    </div>
+                </div>
+                
+                <!-- 文件管理操作footer -->
+                <div class="file-manager-footer">
+                    <div class="footer-left">
+                        <button class="toolbar-btn" id="refresh-files">
+                            <span>刷新</span>
+                        </button>
+                    </div>
+                    <div class="footer-actions" id="file-footer-actions">
+                        <button class="toolbar-btn" id="rename-file-btn">
+                            <span>重命名 (F2)</span>
+                        </button>
+                        <button class="toolbar-btn" id="switch-file-btn">
+                            <span>切换 (Enter)</span>
+                        </button>
+                        <button class="toolbar-btn delete-btn" id="delete-file-btn">
+                            <span>删除 (Del)</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 新建文件模态框 -->
+    <div class="new-file-modal" id="new-file-modal">
+        <div class="new-file-content">
+            <div class="new-file-header">
+                <h3>新建文件</h3>
+                <span class="new-file-close" id="new-file-close">&times;</span>
+            </div>
+            <div class="new-file-body">
+                <div class="form-group">
+                    <label for="new-file-name">文件名</label>
+                    <input type="text" id="new-file-name" placeholder="输入文件名" maxlength="50">
+                    <div class="file-name-hint">
+                        文件名不能包含特殊字符，且不能与现有文件重名
+                    </div>
+                </div>
+            </div>
+            <div class="new-file-footer">
+                <button class="btn btn-primary" id="create-file-btn">创建文件</button>
+                <button class="btn btn-secondary" id="cancel-new-file">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="./script.js"></script>
+</body>
+</html>
