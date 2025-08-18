@@ -1,4 +1,4 @@
-require "lib.behavior.tree"
+require "behavior.tree"
 
 ---@class AIConfig
 AIConfig = {}
@@ -21,16 +21,21 @@ function AIConfig.build_node(builder, config)
     elseif config.type == BT.NodeType.FALLBACK then
         builder:fallback(config.name)
     elseif config.type == BT.NodeType.PARALLEL then
+        -- 支持黑板引用的policy配置
         builder:parallel(config.name, config.policy)
     elseif config.type == BT.NodeType.INVERTER then
         builder:inverter(config.name)
     elseif config.type == BT.NodeType.REPEATER then
+        -- 支持黑板引用的count配置
         builder:repeater(config.name, config.count)
     elseif config.type == BT.NodeType.TIMEOUT then
+        -- 支持黑板引用的duration配置
         builder:timeout(config.name, config.duration)
     elseif config.type == BT.NodeType.RETRY then
+        -- 支持黑板引用的max_retries配置
         builder:retry(config.name, config.max_retries)
     elseif config.type == BT.NodeType.COOLDOWN then
+        -- 支持黑板引用的duration配置
         builder:cooldown(config.name, config.duration)
     elseif config.type == BT.NodeType.ALWAYS_SUCCESS then
         builder:always_success(config.name)

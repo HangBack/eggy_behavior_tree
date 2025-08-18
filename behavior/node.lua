@@ -136,7 +136,7 @@ local ParallelNode = Class("ParallelNode", BaseNode)
 
 function ParallelNode:init(name, policy)
     BaseNode.init(self, name)
-    self.policy = policy or BT.ParallelPolicy.REQUIRE_ALL
+    BT.Utils.set_node_property(self, "policy", policy or BT.ParallelPolicy.REQUIRE_ALL)
 end
 
 function ParallelNode:execute()
@@ -157,7 +157,8 @@ function ParallelNode:execute()
     end
 
     -- 根据策略判断结果
-    if self.policy == BT.ParallelPolicy.REQUIRE_ONE then
+    local policy = BT.Utils.get_node_property(self, "policy")
+    if policy == BT.ParallelPolicy.REQUIRE_ONE then
         if success_count > 0 then
             return BT.Status.SUCCESS
         elseif running_count > 0 then
@@ -224,15 +225,16 @@ local RepeaterNode = Class("RepeaterNode", DecoratorNode)
 
 function RepeaterNode:init(name, count)
     DecoratorNode.init(self, name)
-    self.repeat_count = count or -1 -- -1表示无限重复
+    BT.Utils.set_node_property(self, "repeat_count", count or -1) -- -1表示无限重复
     self.current_count = 0
 end
 
 function RepeaterNode:decorate(child_status)
     if child_status ~= BT.Status.RUNNING then
         self.current_count = self.current_count + 1
-
-        if self.repeat_count > 0 and self.current_count >= self.repeat_count then
+        
+        local repeat_count = BT.Utils.get_node_property(self, "repeat_count")
+        if repeat_count > 0 and self.current_count >= repeat_count then
             self.current_count = 0
             return child_status
         else
@@ -254,7 +256,7 @@ local TimeoutNode = Class("TimeoutNode", DecoratorNode)
 
 function TimeoutNode:init(name, timeout_duration)
     DecoratorNode.init(self, name)
-    self.timeout_duration = timeout_duration or 5.0
+    BT.Utils.set_node_property(self, "timeout_duration", timeout_duration or 5.0)
     self.start_time = nil
 end
 
@@ -270,7 +272,8 @@ function TimeoutNode:execute()
 
     -- 检查是否超时
     local current_time = BT.Frameout.frame
-    if (current_time - self.start_time) >= (self.timeout_duration * 30) then
+    local timeout_duration = BT.Utils.get_node_property(self, "timeout_duration")
+    if (current_time - self.start_time) >= (timeout_duration * 30) then
         self:reset()
         return BT.Status.FAILURE
     end
@@ -298,7 +301,7 @@ local RetryNode = Class("RetryNode", DecoratorNode)
 
 function RetryNode:init(name, max_retries)
     DecoratorNode.init(self, name)
-    self.max_retries = max_retries or 3
+    BT.Utils.set_node_property(self, "max_retries", max_retries or 3)
     self.current_retries = 0
 end
 
@@ -308,8 +311,9 @@ function RetryNode:decorate(child_status)
         return BT.Status.SUCCESS
     elseif child_status == BT.Status.FAILURE then
         self.current_retries = self.current_retries + 1
-
-        if self.current_retries >= self.max_retries then
+        
+        local max_retries = BT.Utils.get_node_property(self, "max_retries")
+        if self.current_retries >= max_retries then
             self.current_retries = 0
             return BT.Status.FAILURE
         else
@@ -336,7 +340,7 @@ local CooldownNode = Class("CooldownNode", DecoratorNode)
 
 function CooldownNode:init(name, cooldown_duration)
     DecoratorNode.init(self, name)
-    self.cooldown_duration = cooldown_duration or 1.0
+    BT.Utils.set_node_property(self, "cooldown_duration", cooldown_duration or 1.0)
     self.last_success_time = nil
 end
 
@@ -348,7 +352,8 @@ function CooldownNode:execute()
     -- 检查是否在冷却期
     if self.last_success_time then
         local current_time = BT.Frameout.frame
-        if (current_time - self.last_success_time) < (self.cooldown_duration * 30) then
+        local cooldown_duration = BT.Utils.get_node_property(self, "cooldown_duration")
+        if (current_time - self.last_success_time) < (cooldown_duration * 30) then
             return BT.Status.FAILURE
         end
     end
