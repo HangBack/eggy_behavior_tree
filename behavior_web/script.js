@@ -110,6 +110,21 @@ class BehaviorTreeEditor {
             }
         });
 
+        // 监听引用子树名称输入变化
+        document.getElementById('subtree-reference').addEventListener('input', () => {
+            if (this.selectedNode && this.selectedNode.type === 'DECORATOR' && this.selectedNode.decoratorType === 'SUBTREE_REF') {
+                this.selectedNode.subtree = document.getElementById('subtree-reference').value;
+                this.updateNodeDisplay();
+                this.saveToStorage();
+
+                // 延迟保存历史状态
+                clearTimeout(this.subtreeReferenceSaveTimeout);
+                this.subtreeReferenceSaveTimeout = setTimeout(() => {
+                    this.saveHistoryState('修改引用子树名称');
+                }, 1000);
+            }
+        });
+
         // 监听坐标输入变化
         const coordInputs = ['node-x', 'node-y'];
         coordInputs.forEach(id => {
@@ -143,6 +158,7 @@ class BehaviorTreeEditor {
         const oldTimeoutDuration = this.selectedNode.timeoutDuration;
         const oldRetryCount = this.selectedNode.retryCount;
         const oldCooldownDuration = this.selectedNode.cooldownDuration;
+        const oldSubtree = this.selectedNode.subtree;
 
         const newName = document.getElementById('node-name').value;
         const newFunc = document.getElementById('node-function').value;
@@ -152,12 +168,18 @@ class BehaviorTreeEditor {
         const newTimeoutDuration = document.getElementById('timeout-duration').value;
         const newRetryCount = document.getElementById('retry-count').value;
         const newCooldownDuration = document.getElementById('cooldown-duration').value;
+        const newSubtree = document.getElementById('subtree-reference').value;
 
         // 检查是否有变更
-        const hasChanges = oldName !== newName || oldFunc !== newFunc ||
-            oldPolicy !== newPolicy || oldComment !== newComment ||
-            oldRepeaterCount !== newRepeaterCount || oldTimeoutDuration !== newTimeoutDuration ||
-            oldRetryCount !== newRetryCount || oldCooldownDuration !== newCooldownDuration;
+        const hasChanges = oldName !== newName ||
+            oldFunc !== newFunc ||
+            oldPolicy !== newPolicy ||
+            oldComment !== newComment ||
+            oldRepeaterCount !== newRepeaterCount ||
+            oldTimeoutDuration !== newTimeoutDuration ||
+            oldRetryCount !== newRetryCount ||
+            oldCooldownDuration !== newCooldownDuration ||
+            oldSubtree !== newSubtree;
 
         if (hasChanges) {
             this.selectedNode.name = newName;
@@ -171,14 +193,15 @@ class BehaviorTreeEditor {
                 this.selectedNode.timeoutDuration = newTimeoutDuration;
                 this.selectedNode.retryCount = newRetryCount;
                 this.selectedNode.cooldownDuration = newCooldownDuration;
+                this.selectedNode.subtree = newSubtree;
             }
 
             this.updateNodeDisplay();
             this.validateAllNodes();
-            
+
             // 检查黑板引用
             this.updateBlackboardReferences();
-            
+
             this.saveToStorage();
 
             // 延迟保存历史状态，避免频繁输入时产生过多历史记录
@@ -443,7 +466,7 @@ class BehaviorTreeEditor {
         if (this.currentTool === 'connect') {
             // 检查鼠标是否悬浮在节点上
             this.handleMouseOverNodes(e);
-            
+
             // 如果已经选择了源连接点，显示虚线跟踪
             if (this.connectingNode && this.selectedFromPoint) {
                 this.updateTempConnection(e);
@@ -524,11 +547,11 @@ class BehaviorTreeEditor {
         // 计算起始点（源节点的连接点位置，使用画布物理坐标）
         const sourcePhysicalX = this.connectingNode.x + 2000;
         const sourcePhysicalY = this.connectingNode.y + 2000;
-        
+
         // 获取源节点元素和尺寸
         const sourceNodeElement = document.getElementById(`node-${this.connectingNode.id}`);
         const sourceDimensions = this.getNodeDimensions(this.connectingNode, sourceNodeElement);
-        
+
         const sourcePoint = this.getConnectionPoint(
             { x: sourcePhysicalX, y: sourcePhysicalY, id: this.connectingNode.id },
             this.selectedFromPoint || 'right'
@@ -542,7 +565,7 @@ class BehaviorTreeEditor {
             if (this.highlightedConnectionPoint && this.highlightedConnectionPoint.node.id === hoveredNode.id) {
                 const targetPhysicalX = hoveredNode.x + 2000;
                 const targetPhysicalY = hoveredNode.y + 2000;
-                
+
                 const endPoint = this.getConnectionPoint(
                     { x: targetPhysicalX, y: targetPhysicalY, id: hoveredNode.id },
                     this.highlightedConnectionPoint.side
@@ -811,7 +834,8 @@ class BehaviorTreeEditor {
             'CONDITION': '条件节点',
             'ACTION': '行为节点',
             'DECORATOR': '装饰节点',
-            'BLACKBOARD': '黑板节点'
+            'BLACKBOARD': '黑板节点',
+            'SUBTREE': '子树节点'
         };
         return typeNames[type] || `${type}节点`;
     }
@@ -877,6 +901,8 @@ class BehaviorTreeEditor {
 
     validateAllNodes() {
         this.nodes.forEach(node => this.validateNode(node));
+        // 验证子树节点重名
+        this.validateSubtreeNames();
     }
 
     validateNode(node) {
@@ -895,7 +921,20 @@ class BehaviorTreeEditor {
 
         const hasChildren = this.connections.some(conn => conn.from === node.id);
 
-        if (['SEQUENCE', 'FALLBACK', 'PARALLEL', 'DECORATOR'].includes(node.type) && !hasChildren) {
+        // 对装饰器节点特殊处理
+        if (node.type === 'DECORATOR') {
+            if (node.decoratorType === 'SUBTREE_REF') {
+                // 引用子树类型：不需要子节点，但需要引用子树名称
+                if (!node.subtree || !node.subtree.trim()) {
+                    hasError = true;
+                }
+            } else {
+                // 其他装饰器类型：需要子节点
+                if (!hasChildren) {
+                    hasError = true;
+                }
+            }
+        } else if (['SEQUENCE', 'FALLBACK', 'PARALLEL', 'SUBTREE'].includes(node.type) && !hasChildren) {
             hasError = true;
         }
 
@@ -906,15 +945,66 @@ class BehaviorTreeEditor {
         }
     }
 
+    // 验证子树节点名称是否重名
+    validateSubtreeNames() {
+        // 收集所有子树节点的名称
+        const subtreeNames = {};
+        
+        // 遍历所有子树节点，收集名称并检查重复
+        this.nodes.forEach(node => {
+            if (node.type === 'SUBTREE') {
+                const name = node.name ? node.name.trim() : '';
+                if (name) {
+                    if (!subtreeNames[name]) {
+                        subtreeNames[name] = [];
+                    }
+                    subtreeNames[name].push(node);
+                }
+            }
+        });
+
+        // 清除所有子树节点的重名错误标记
+        this.nodes.forEach(node => {
+            if (node.type === 'SUBTREE') {
+                const nodeElement = document.getElementById(`node-${node.id}`);
+                if (nodeElement) {
+                    nodeElement.classList.remove('subtree-name-duplicate');
+                }
+            }
+        });
+
+        // 标记重名的子树节点
+        Object.keys(subtreeNames).forEach(name => {
+            const nodesWithSameName = subtreeNames[name];
+            if (nodesWithSameName.length > 1) {
+                // 这个名称有多个子树节点使用，标记为重名错误
+                nodesWithSameName.forEach(node => {
+                    const nodeElement = document.getElementById(`node-${node.id}`);
+                    if (nodeElement) {
+                        nodeElement.classList.add('error', 'subtree-name-duplicate');
+                        // 添加提示信息
+                        nodeElement.title = `子树名称 "${name}" 重复，请修改为唯一名称`;
+                    }
+                });
+            }
+        });
+    }
+
     generateNodeHTML(node) {
         let content = '';
-        if (['SEQUENCE', 'FALLBACK', 'PARALLEL', 'DECORATOR'].includes(node.type)) {
+        if (node.type === 'DECORATOR' && node.decoratorType === 'SUBTREE_REF') {
+            // 引用子树装饰器显示引用的子树名称
+            const subtreeRef = node.subtree || '未设置';
+            content = `<p>引用子树: ${subtreeRef}</p>`;
+        } else if (['SEQUENCE', 'FALLBACK', 'PARALLEL'].includes(node.type) || 
+                   (node.type === 'DECORATOR' && node.decoratorType !== 'SUBTREE_REF')) {
+            // 其他需要显示子节点数量的节点类型
             const childCount = this.getChildCount(node.id);
             content = `<p>子节点: ${childCount}</p>`;
         } else if (['CONDITION', 'ACTION'].includes(node.type)) {
             content = `<p>函数: ${node.func || '未设置'}</p>`;
         } else if (['BLACKBOARD'].includes(node.type)) {
-                    content = `
+            content = `
                 <div class="blackboard-content">
                     <div class="blackboard-header">
                         <span>数据字段</span>
@@ -949,7 +1039,8 @@ class BehaviorTreeEditor {
                 'ALWAYS_SUCCESS': '总是成功',
                 'ALWAYS_FAILURE': '总是失败',
                 'UNTIL_SUCCESS': '直到成功',
-                'UNTIL_FAILURE': '直到失败'
+                'UNTIL_FAILURE': '直到失败',
+                'SUBTREE_REF': '引用子树'
             };
             displayTag = decoratorNames[node.decoratorType] || '装饰节点';
         }
@@ -1056,10 +1147,10 @@ class BehaviorTreeEditor {
 
             // 确保目标节点显示连接点并更新高亮状态
             this.showConnectionPoints(node);
-            
+
             // 获取最优的目标连接点
             let selectedToPoint = 'left'; // 默认左侧
-            
+
             // 如果有高亮的连接点且属于目标节点，使用它
             if (this.highlightedConnectionPoint && this.highlightedConnectionPoint.node.id === node.id) {
                 selectedToPoint = this.highlightedConnectionPoint.side;
@@ -1071,7 +1162,7 @@ class BehaviorTreeEditor {
                     { x: sourcePhysicalX, y: sourcePhysicalY, id: this.connectingNode.id },
                     this.selectedFromPoint
                 );
-                
+
                 selectedToPoint = this.findOptimalConnectionSide(
                     { x: node.x + 2000, y: node.y + 2000, id: node.id },
                     { x: sourcePoint.x, y: sourcePoint.y }
@@ -1339,7 +1430,7 @@ class BehaviorTreeEditor {
             return false;
         }
 
-        if (fromNode.type === 'DECORATOR') {
+        if (fromNode.type === 'DECORATOR' || fromNode.type === 'SUBTREE') {
             const existingConnections = this.connections.filter(conn => conn.from === fromNode.id);
             if (existingConnections.length >= 1) return false;
         }
@@ -1363,12 +1454,12 @@ class BehaviorTreeEditor {
     isRootOrBlackboardOnlyChild(node) {
         // 查找指向该节点的所有连接
         const incomingConnections = this.connections.filter(conn => conn.to === node.id);
-        
+
         // 如果没有任何连接指向该节点，说明它是根节点
         if (incomingConnections.length === 0) {
             return true;
         }
-        
+
         // 如果有连接指向该节点，检查所有父节点是否都是黑板节点
         for (const conn of incomingConnections) {
             const parentNode = this.nodes.find(n => n.id === conn.from);
@@ -1376,7 +1467,7 @@ class BehaviorTreeEditor {
                 return false; // 有非黑板父节点，不符合条件
             }
         }
-        
+
         return true; // 所有父节点都是黑板节点（或没有父节点）
     }
 
@@ -1433,16 +1524,16 @@ class BehaviorTreeEditor {
         // 获取节点实际尺寸
         const fromNodeElement = document.getElementById(`node-${fromNode.id}`);
         const toNodeElement = document.getElementById(`node-${toNode.id}`);
-        
+
         let fromWidth = 180, fromHeight = 80;
         let toWidth = 180, toHeight = 80;
-        
+
         if (fromNodeElement) {
             const fromDimensions = this.getNodeDimensions(fromNode, fromNodeElement);
             fromWidth = fromDimensions.width;
             fromHeight = fromDimensions.height;
         }
-        
+
         if (toNodeElement) {
             const toDimensions = this.getNodeDimensions(toNode, toNodeElement);
             toWidth = toDimensions.width;
@@ -1716,7 +1807,10 @@ class BehaviorTreeEditor {
         const policyGroup = document.getElementById('policy-group');
         const decoratorTypeGroup = document.getElementById('decorator-type-group');
 
-        functionGroup.style.display = ['CONDITION', 'ACTION'].includes(this.selectedNode.type) ? 'block' : 'none';
+        // 函数组显示逻辑：条件节点、行为节点需要显示
+        const needsFunctionGroup = ['CONDITION', 'ACTION'].includes(this.selectedNode.type);
+        functionGroup.style.display = needsFunctionGroup ? 'block' : 'none';
+
         policyGroup.style.display = this.selectedNode.type === 'PARALLEL' ? 'block' : 'none';
         decoratorTypeGroup.style.display = this.selectedNode.type === 'DECORATOR' ? 'block' : 'none';
 
@@ -1777,6 +1871,10 @@ class BehaviorTreeEditor {
                 document.getElementById('cooldown-duration-group').style.display = 'block';
                 document.getElementById('cooldown-duration').value = this.selectedNode.cooldownDuration || '';
                 break;
+            case 'SUBTREE_REF':
+                document.getElementById('subtree-reference-group').style.display = 'block';
+                document.getElementById('subtree-reference').value = this.selectedNode.subtree || '';
+                break;
         }
 
         // 在装饰器属性填充完成后，检查并应用黑板引用样式
@@ -1790,6 +1888,7 @@ class BehaviorTreeEditor {
         document.getElementById('timeout-duration-group').style.display = 'none';
         document.getElementById('retry-count-group').style.display = 'none';
         document.getElementById('cooldown-duration-group').style.display = 'none';
+        document.getElementById('subtree-reference-group').style.display = 'none';
     }
 
     updateNodeDisplay() {
@@ -1921,7 +2020,7 @@ class BehaviorTreeEditor {
         if (e.target === this.canvas) {
             this.selectNode(null);
             this.resetConnectionMode();
-            
+
             // 让所有输入框失去焦点
             document.querySelectorAll('input, textarea').forEach(input => {
                 input.blur();
@@ -1964,7 +2063,7 @@ class BehaviorTreeEditor {
                     .filter(conn => conn.from === blackboardRoot.id)
                     .map(conn => this.nodes.find(n => n.id === conn.to))
                     .filter(child => child && child.type !== 'BLACKBOARD');
-                
+
                 if (children.length > 0) {
                     actualRoot = children[0]; // 使用第一个子节点作为实际根节点
                     break;
@@ -1982,12 +2081,57 @@ class BehaviorTreeEditor {
             return;
         }
 
-        const luaCode = this.generateLuaCode(actualRoot);
+        // 生成主树代码和子树代码
+        const { mainTreeCode, subtreesCode } = this.generateLuaCodeWithSubtrees(actualRoot);
+        
+        let luaCode;
+        if (subtreesCode.length > 0) {
+            // 如果有子树，输出包含子树的格式
+            luaCode = `return \n${mainTreeCode.replace(/^return /, '').slice(0, -2)},\n    subtrees = {\n${subtreesCode.join(',\n')}\n    }\n}`;
+        } else {
+            // 如果没有子树，输出简单格式
+            luaCode = mainTreeCode;
+        }
+
         this.downloadFile(luaCode, `behavior_tree_${this.currentFileName}.lua`, 'text/plain');
         this.showNotification('Lua文件已导出');
     }
 
-    generateLuaCode(node) {
+    generateLuaCodeWithSubtrees(rootNode) {
+        // 收集所有子树节点
+        const subtreeNodes = this.nodes.filter(node => node.type === 'SUBTREE');
+        
+        // 生成主树代码
+        const mainTreeCode = this.generateLuaCodeForTree(rootNode, subtreeNodes);
+        
+        // 生成子树代码
+        const subtreesCode = [];
+        subtreeNodes.forEach(subtreeNode => {
+            // 找到子树节点的第一个子节点作为子树的真正根节点
+            const subtreeRootConnection = this.connections.find(conn => conn.from === subtreeNode.id);
+            if (subtreeRootConnection) {
+                const subtreeRootNode = this.nodes.find(n => n.id === subtreeRootConnection.to);
+                if (subtreeRootNode) {
+                    // 从子树的根节点开始生成代码
+                    const subtreeCode = this.generateLuaCodeForTree(subtreeRootNode, []);
+                    const subtreeConfigCode = subtreeCode
+                        .replace(/^return /, '') // 去掉return包装
+                        .split('\n')
+                        .map(line => '        ' + line)
+                        .join('\n');
+                    
+                    subtreesCode.push(`        ["${subtreeNode.name}"] = ${subtreeConfigCode}`);
+                }
+            }
+        });
+        
+        return {
+            mainTreeCode,
+            subtreesCode
+        };
+    }
+
+    generateLuaCodeForTree(node, subtreeNodes = []) {
         // 跳过黑板节点
         if (node.type === 'BLACKBOARD') {
             return '';
@@ -2036,15 +2180,27 @@ class BehaviorTreeEditor {
             code += `,\n    count = ${retryValue}`;
         }
 
-        // 获取子节点（已经按正确顺序排列），排除黑板节点
+        // 处理引用子树装饰器的函数
+        if (node.decoratorType === 'SUBTREE_REF' && node.subtree) {
+            const subtreeValue = this.formatBlackboardReference(node.subtree, true);
+            code += `,\n    subtree_name = "${subtreeValue}"`;
+        }
+
+        // 获取子节点（已经按正确顺序排列），排除黑板节点和子树节点
         const children = this.connections
             .filter(conn => conn.from === node.id)
             .map(conn => this.nodes.find(n => n.id === conn.to))
-            .filter(child => child && child.type !== 'BLACKBOARD');
+            .filter(child => {
+                if (!child) return false;
+                if (child.type === 'BLACKBOARD') return false;
+                // 如果当前是在生成主树，排除子树节点
+                if (subtreeNodes.length > 0 && child.type === 'SUBTREE') return false;
+                return true;
+            });
 
         if (children.length > 0) {
             code += ',\n    children = {\n';
-            const validChildren = children.map(child => this.generateLuaCode(child)).filter(childCode => childCode !== '');
+            const validChildren = children.map(child => this.generateLuaCodeForTree(child, subtreeNodes)).filter(childCode => childCode !== '');
             validChildren.forEach((childCode, index) => {
                 const formattedChildCode = childCode
                     .replace(/^return /, '')
@@ -3484,7 +3640,7 @@ class BehaviorTreeEditor {
     checkBlackboardKeyDuplicates() {
         // 收集所有黑板节点的所有字段键
         const allKeys = {};
-        
+
         // 遍历所有黑板节点
         this.nodes.forEach(node => {
             if (node.type === 'BLACKBOARD' && node.fields) {
@@ -3577,20 +3733,121 @@ class BehaviorTreeEditor {
     // 更新所有输入框的黑板引用样式
     updateBlackboardReferences() {
         // 获取所有相关输入框（除了节点名称、位置、节点类型、注释说明）
-        const inputs = document.querySelectorAll('#node-function, #node-policy, #repeater-count, #timeout-duration, #retry-count, #cooldown-duration');
-        
+        const inputs = document.querySelectorAll('#node-function, #node-policy, #repeater-count, #timeout-duration, #retry-count, #cooldown-duration, #subtree-reference');
+
         inputs.forEach(input => {
             this.updateInputBlackboardStyle(input);
         });
     }
 
+    // 获取所有子树节点的名称
+    getAllSubtreeNames() {
+        return this.nodes
+            .filter(node => node.type === 'SUBTREE')
+            .map(node => node.name)
+            .filter(name => name && name.trim() !== '');
+    }
+
+    // 检查子树引用是否有效
+    isValidSubtreeReference(subtreeName) {
+        const availableSubtrees = this.getAllSubtreeNames();
+        return availableSubtrees.includes(subtreeName);
+    }
+
+    // 验证引用子树装饰器的函数字段
+    validateSubtreeReference(input, value) {
+        if (!value || value.trim() === '') {
+            input.title = '';
+            return;
+        }
+
+        const trimmedValue = value.trim();
+
+        // 如果是黑板引用，按黑板引用处理
+        if (this.isBlackboardReference(trimmedValue)) {
+            const keyName = trimmedValue.substring(1);
+            if (this.isValidBlackboardReference(keyName)) {
+                input.classList.add('blackboard-reference');
+                input.title = `黑板引用: ${keyName}`;
+            } else {
+                input.classList.add('blackboard-reference-invalid');
+                input.title = `无效的黑板引用: ${keyName} (键名不存在)`;
+            }
+            return;
+        }
+
+        // 验证子树引用
+        if (this.isValidSubtreeReference(trimmedValue)) {
+            input.title = `引用子树: ${trimmedValue}`;
+        } else {
+            input.classList.add('subtree-reference-invalid');
+            const availableSubtrees = this.getAllSubtreeNames();
+            if (availableSubtrees.length > 0) {
+                input.title = `无效的子树引用: ${trimmedValue}\n可用的子树: ${availableSubtrees.join(', ')}`;
+            } else {
+                input.title = `无效的子树引用: ${trimmedValue}\n当前没有可用的子树节点`;
+            }
+        }
+    }
+
+    // 验证引用子树名称字段
+    validateSubtreeReferenceName(input, value) {
+        if (!value || value.trim() === '') {
+            input.title = '';
+            return;
+        }
+
+        const trimmedValue = value.trim();
+
+        // 如果是黑板引用，按黑板引用处理
+        if (this.isBlackboardReference(trimmedValue)) {
+            const keyName = trimmedValue.substring(1);
+            if (this.isValidBlackboardReference(keyName)) {
+                input.classList.add('blackboard-reference');
+                input.title = `黑板引用: ${keyName}`;
+            } else {
+                input.classList.add('blackboard-reference-invalid');
+                input.title = `无效的黑板引用: ${keyName} (键名不存在)`;
+            }
+            return;
+        }
+
+        // 验证子树引用
+        if (this.isValidSubtreeReference(trimmedValue)) {
+            input.title = `引用子树: ${trimmedValue}`;
+        } else {
+            input.classList.add('subtree-reference-invalid');
+            const availableSubtrees = this.getAllSubtreeNames();
+            if (availableSubtrees.length > 0) {
+                input.title = `无效的子树引用: ${trimmedValue}\n可用的子树: ${availableSubtrees.join(', ')}`;
+            } else {
+                input.title = `无效的子树引用: ${trimmedValue}\n当前没有可用的子树节点`;
+            }
+        }
+    }
+
     // 更新单个输入框的黑板引用样式
     updateInputBlackboardStyle(input) {
         const value = input.value;
-        
+
         // 清除之前的样式
-        input.classList.remove('blackboard-reference', 'blackboard-reference-invalid', 'number-validation-error');
-        
+        input.classList.remove('blackboard-reference', 'blackboard-reference-invalid', 'number-validation-error', 'subtree-reference-invalid');
+
+        // 检查是否是引用子树装饰器的函数字段
+        if (input.id === 'node-function' && this.selectedNode &&
+            this.selectedNode.type === 'DECORATOR' &&
+            this.selectedNode.decoratorType === 'SUBTREE_REF') {
+            this.validateSubtreeReference(input, value);
+            return;
+        }
+
+        // 检查是否是引用子树名称字段
+        if (input.id === 'subtree-reference') {
+            this.validateSubtreeReferenceName(input, value);
+            return;
+        }
+
+        // 优先检查黑板引用
         if (this.isBlackboardReference(value)) {
             const keyName = value.substring(1); // 去掉@符号
             if (this.isValidBlackboardReference(keyName)) {
@@ -3605,6 +3862,7 @@ class BehaviorTreeEditor {
             if (this.shouldValidateAsNumber(input)) {
                 this.validateNumberInput(input, value);
             } else {
+                // 清空提示
                 input.title = '';
             }
         }
@@ -3633,19 +3891,19 @@ class BehaviorTreeEditor {
                 isValid = /^-?\d+$/.test(trimmedValue) && parseInt(trimmedValue) >= -1;
                 errorMessage = '重复次数必须是大于等于-1的整数（-1表示无限重复）';
                 break;
-            
+
             case 'timeout-duration':
                 // 超时时间：正数，支持小数
                 isValid = /^\d+(\.\d+)?$/.test(trimmedValue) && parseFloat(trimmedValue) > 0;
                 errorMessage = '超时时间必须是大于0的数字';
                 break;
-            
+
             case 'retry-count':
                 // 重试次数：正整数
                 isValid = /^\d+$/.test(trimmedValue) && parseInt(trimmedValue) >= 1;
                 errorMessage = '重试次数必须是大于等于1的整数';
                 break;
-            
+
             case 'cooldown-duration':
                 // 冷却时间：非负数，支持小数
                 isValid = /^\d+(\.\d+)?$/.test(trimmedValue) && parseFloat(trimmedValue) >= 0;
@@ -3672,7 +3930,7 @@ class BehaviorTreeEditor {
         }
 
         const keyName = value.substring(1); // 去掉@符号
-        
+
         if (forLua) {
             // 生成Lua格式的黑板引用
             const defaultValue = this.getBlackboardDefaultValue(keyName);
@@ -3689,16 +3947,16 @@ class BehaviorTreeEditor {
     // 格式化Lua值
     formatLuaValue(value) {
         if (!value || value === '') return '""';
-        
+
         // 如果是数字
         if (!isNaN(value) && !isNaN(parseFloat(value))) {
             return parseFloat(value).toString();
         }
-        
+
         // 如果是布尔值
         if (value.toLowerCase() === 'true') return 'true';
         if (value.toLowerCase() === 'false') return 'false';
-        
+
         // 默认作为字符串处理
         return `"${value.replace(/"/g, '\\"')}"`;
     }
@@ -3708,8 +3966,8 @@ bte = new BehaviorTreeEditor();
 
 // 为所有相关输入框添加黑板引用检测
 document.addEventListener('DOMContentLoaded', () => {
-    const inputs = document.querySelectorAll('#node-function, #node-policy, #repeater-count, #timeout-duration, #retry-count, #cooldown-duration');
-    
+    const inputs = document.querySelectorAll('#node-function, #node-policy, #repeater-count, #timeout-duration, #retry-count, #cooldown-duration, #subtree-reference');
+
     inputs.forEach(input => {
         input.addEventListener('input', () => {
             if (bte.selectedNode) {

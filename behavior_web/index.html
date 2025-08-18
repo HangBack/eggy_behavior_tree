@@ -93,6 +93,10 @@
                     <h3>黑板节点</h3>
                     <p>共享数据黑板，管理全局变量</p>
                 </div>
+                <div class="node-type" data-type="SUBTREE">
+                    <h3>子树节点</h3>
+                    <p>可复用的子树，支持模块化设计</p>
+                </div>
             </div>
         </div>
         
@@ -155,6 +159,7 @@
                         <option value="ALWAYS_FAILURE">总是失败 (AlwaysFailure)</option>
                         <option value="UNTIL_SUCCESS">直到成功 (UntilSuccess)</option>
                         <option value="UNTIL_FAILURE">直到失败 (UntilFailure)</option>
+                        <option value="SUBTREE_REF">引用子树 (SubtreeRef)</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -208,6 +213,10 @@
                 <div class="form-group" id="cooldown-duration-group" style="display: none;">
                     <label for="cooldown-duration">冷却时间(秒)</label>
                     <input type="text" id="cooldown-duration" placeholder="输入冷却时间 或使用@引用">
+                </div>
+                <div class="form-group" id="subtree-reference-group" style="display: none;">
+                    <label for="subtree-reference">引用子树名称</label>
+                    <input type="text" id="subtree-reference" placeholder="输入要引用的子树名称">
                 </div>
                 <div class="form-group">
                     <label for="node-comment">注释说明</label>

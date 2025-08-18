@@ -176,6 +176,12 @@ function TreeBuilder:condition(name, func)
     return self
 end
 
+function TreeBuilder:subtree_ref(name, subtree_name)
+    local node = BT.SubtreeRefNode:new(name, subtree_name)
+    self:push_node(node)
+    return self
+end
+
 function TreeBuilder:push_node(node)
     if #self.node_stack > 0 then
         local parent = self.node_stack[#self.node_stack]

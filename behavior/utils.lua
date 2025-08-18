@@ -15,23 +15,6 @@ BT.MessageType = {
     BLACKBOARD = "BLACKBOARD"
 }
 
--- 行为树工具和常量
-BT = BT or {}
-
--- 节点状态枚举
----@enum BT.Status
-BT.Status = {
-    SUCCESS = "SUCCESS",
-    FAILURE = "FAILURE",
-    RUNNING = "RUNNING"
-}
-
--- 消息类型枚举
----@enum BT.MessageType
-BT.MessageType = {
-    BLACKBOARD = "BLACKBOARD"
-}
-
 -- 节点类型枚举
 ---@enum BT.NodeType
 BT.NodeType = {
@@ -52,9 +35,10 @@ BT.NodeType = {
     ALWAYS_FAILURE = "ALWAYS_FAILURE",
     UNTIL_SUCCESS = "UNTIL_SUCCESS",
     UNTIL_FAILURE = "UNTIL_FAILURE",
+    SUBTREE_REF = "SUBTREE_REF",
     -- 执行节点
     ACTION = "ACTION",
-    CONDITION = "CONDITION"
+    CONDITION = "CONDITION",
 }
 
 -- 并行节点策略
@@ -122,20 +106,6 @@ function BT.Utils.get_node_property(node, property_name)
 end
 
 
--- 深拷贝函数
-function BT.Utils.deep_copy(orig)
-    local copy
-    if type(orig) == 'table' then
-        copy = {}
-        for orig_key, orig_value in next, orig, nil do
-            copy[BT.Utils.deep_copy(orig_key)] = BT.Utils.deep_copy(orig_value)
-        end
-        setmetatable(copy, BT.Utils.deep_copy(getmetatable(orig)))
-    else
-        copy = orig
-    end
-    return copy
-end
 
 -- 日志函数
 function BT.Utils.log(message)

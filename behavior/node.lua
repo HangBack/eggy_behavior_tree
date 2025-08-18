@@ -431,6 +431,57 @@ function UntilFailureNode:decorate(child_status)
     return child_status -- RUNNING
 end
 
+-- SubtreeRef装饰器 - 引用子树
+---@class SubtreeRefNode : DecoratorNode
+---@field subtree_name string 子树名称
+---@field subtree_root BaseNode? 子树的根节点
+local SubtreeRefNode = Class("SubtreeRefNode", DecoratorNode)
+
+function SubtreeRefNode:init(name, subtree_name)
+    DecoratorNode.init(self, name)
+    BT.Utils.set_node_property(self, "subtree_name", subtree_name or "")
+    self.subtree_root = nil
+end
+
+function SubtreeRefNode:set_subtree_root(root_node)
+    self.subtree_root = root_node
+    if self.subtree_root then
+        self.subtree_root:set_blackboard(self.blackboard)
+    end
+end
+
+function SubtreeRefNode:set_blackboard(blackboard)
+    DecoratorNode.set_blackboard(self, blackboard)
+    if self.subtree_root then
+        self.subtree_root:set_blackboard(blackboard)
+    end
+end
+
+function SubtreeRefNode:execute()
+    -- 如果有子树，执行子树而不是子节点
+    if self.subtree_root then
+        return self.subtree_root:execute()
+    end
+    
+    -- 如果没有子树，降级为普通装饰器执行子节点
+    if #self.children > 0 then
+        return self.children[1]:execute()
+    end
+    
+    return BT.Status.FAILURE
+end
+
+function SubtreeRefNode:reset()
+    DecoratorNode.reset(self)
+    if self.subtree_root then
+        self.subtree_root:reset()
+    end
+end
+
+function SubtreeRefNode:get_subtree_name()
+    return BT.Utils.get_node_property(self, "subtree_name")
+end
+
 ---@class ActionNodeConfig : BaseNodeConfig
 ---@field type "ACTION"
 ---@field func fun(blackboard: Blackboard): BT.Status 行为函数
@@ -474,6 +525,7 @@ function ConditionNode:execute()
     return BT.Status.FAILURE
 end
 
+
 -- 导出所有节点类
 BT.BaseNode = BaseNode
 BT.SequenceNode = SequenceNode
@@ -489,6 +541,7 @@ BT.AlwaysSuccessNode = AlwaysSuccessNode
 BT.AlwaysFailureNode = AlwaysFailureNode
 BT.UntilSuccessNode = UntilSuccessNode
 BT.UntilFailureNode = UntilFailureNode
+BT.SubtreeRefNode = SubtreeRefNode
 BT.ActionNode = ActionNode
 BT.ConditionNode = ConditionNode
 
