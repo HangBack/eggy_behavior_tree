@@ -89,6 +89,10 @@
                     <h3>装饰节点</h3>
                     <p>装饰节点，只有一个子节点</p>
                 </div>
+                <div class="node-type" data-type="BLACKBOARD">
+                    <h3>黑板节点</h3>
+                    <p>共享数据黑板，管理全局变量</p>
+                </div>
             </div>
         </div>
         
@@ -191,19 +195,19 @@
                 <!-- 装饰器特定属性 -->
                 <div class="form-group" id="repeater-count-group" style="display: none;">
                     <label for="repeater-count">重复次数</label>
-                    <input type="number" id="repeater-count" placeholder="输入重复次数 (-1表示无限重复)" min="-1">
+                    <input type="text" id="repeater-count" placeholder="输入重复次数 (-1表示无限重复) 或使用@引用">
                 </div>
                 <div class="form-group" id="timeout-duration-group" style="display: none;">
                     <label for="timeout-duration">超时时间(秒)</label>
-                    <input type="number" id="timeout-duration" placeholder="输入超时时间" min="0" step="0.1">
+                    <input type="text" id="timeout-duration" placeholder="输入超时时间 或使用@引用">
                 </div>
                 <div class="form-group" id="retry-count-group" style="display: none;">
                     <label for="retry-count">最大重试次数</label>
-                    <input type="number" id="retry-count" placeholder="输入最大重试次数" min="1">
+                    <input type="text" id="retry-count" placeholder="输入最大重试次数 或使用@引用">
                 </div>
                 <div class="form-group" id="cooldown-duration-group" style="display: none;">
                     <label for="cooldown-duration">冷却时间(秒)</label>
-                    <input type="number" id="cooldown-duration" placeholder="输入冷却时间" min="0" step="0.1">
+                    <input type="text" id="cooldown-duration" placeholder="输入冷却时间 或使用@引用">
                 </div>
                 <div class="form-group">
                     <label for="node-comment">注释说明</label>

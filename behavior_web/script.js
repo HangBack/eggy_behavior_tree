@@ -175,6 +175,10 @@ class BehaviorTreeEditor {
 
             this.updateNodeDisplay();
             this.validateAllNodes();
+            
+            // 检查黑板引用
+            this.updateBlackboardReferences();
+            
             this.saveToStorage();
 
             // 延迟保存历史状态，避免频繁输入时产生过多历史记录
@@ -437,13 +441,13 @@ class BehaviorTreeEditor {
 
     handleCanvasMouseMove(e) {
         if (this.currentTool === 'connect') {
+            // 检查鼠标是否悬浮在节点上
+            this.handleMouseOverNodes(e);
+            
             // 如果已经选择了源连接点，显示虚线跟踪
             if (this.connectingNode && this.selectedFromPoint) {
                 this.updateTempConnection(e);
             }
-
-            // 检查鼠标是否悬浮在节点上
-            this.handleMouseOverNodes(e);
         }
     }
 
@@ -460,8 +464,16 @@ class BehaviorTreeEditor {
 
         if (hoveredNode) {
             this.showConnectionPointsForNode(hoveredNode, e);
-        } else if (!this.connectingNode) {
-            this.hideAllConnectionPoints();
+        } else {
+            // 只有在没有连接中的节点时才隐藏连接点
+            if (!this.connectingNode) {
+                this.hideAllConnectionPoints();
+                this.highlightedConnectionPoint = null;
+            } else {
+                // 连接模式下，只保留源节点的连接点显示
+                this.showConnectionPoints(this.connectingNode);
+                this.highlightedConnectionPoint = null;
+            }
         }
     }
 
@@ -512,32 +524,45 @@ class BehaviorTreeEditor {
         // 计算起始点（源节点的连接点位置，使用画布物理坐标）
         const sourcePhysicalX = this.connectingNode.x + 2000;
         const sourcePhysicalY = this.connectingNode.y + 2000;
+        
+        // 获取源节点元素和尺寸
+        const sourceNodeElement = document.getElementById(`node-${this.connectingNode.id}`);
+        const sourceDimensions = this.getNodeDimensions(this.connectingNode, sourceNodeElement);
+        
         const sourcePoint = this.getConnectionPoint(
-            { x: sourcePhysicalX, y: sourcePhysicalY },
+            { x: sourcePhysicalX, y: sourcePhysicalY, id: this.connectingNode.id },
             this.selectedFromPoint || 'right'
         );
 
         let endX = canvasX;
         let endY = canvasY;
-        let endPoint = null;
 
         if (hoveredNode && hoveredNode.id !== this.connectingNode.id) {
             // 使用当前高亮的连接点作为终点
             if (this.highlightedConnectionPoint && this.highlightedConnectionPoint.node.id === hoveredNode.id) {
                 const targetPhysicalX = hoveredNode.x + 2000;
                 const targetPhysicalY = hoveredNode.y + 2000;
-                endPoint = this.getConnectionPoint(
-                    { x: targetPhysicalX, y: targetPhysicalY },
+                
+                const endPoint = this.getConnectionPoint(
+                    { x: targetPhysicalX, y: targetPhysicalY, id: hoveredNode.id },
                     this.highlightedConnectionPoint.side
                 );
                 endX = endPoint.x;
                 endY = endPoint.y;
             } else {
-                // 连接到悬停节点的中心（备用方案）
+                // 连接到悬停节点的最优连接点
                 const targetPhysicalX = hoveredNode.x + 2000;
                 const targetPhysicalY = hoveredNode.y + 2000;
-                endX = targetPhysicalX + 90; // 节点中心
-                endY = targetPhysicalY + 40;
+                const hoveredNodeElement = document.getElementById(`node-${hoveredNode.id}`);
+                const targetDimensions = this.getNodeDimensions(hoveredNode, hoveredNodeElement);
+
+                // 计算最优连接点
+                const optimalPoint = this.findOptimalConnectionPoint(
+                    { x: targetPhysicalX, y: targetPhysicalY, id: hoveredNode.id },
+                    { x: sourcePoint.x, y: sourcePoint.y }
+                );
+                endX = optimalPoint.x;
+                endY = optimalPoint.y;
             }
         }
 
@@ -576,17 +601,23 @@ class BehaviorTreeEditor {
     }
 
     getNodeAtPosition(x, y) {
-        return this.nodes.find(node =>
-            x >= node.x && x <= node.x + 180 &&
-            y >= node.y && y <= node.y + 80
-        );
+        return this.nodes.find(node => {
+            const nodeElement = document.getElementById(`node-${node.id}`);
+            const nodeDimensions = this.getNodeDimensions(node, nodeElement);
+            return x >= node.x && x <= node.x + nodeDimensions.width &&
+                y >= node.y && y <= node.y + nodeDimensions.height
+        });
     }
 
     getNodeAtWorldPosition(worldX, worldY) {
-        return this.nodes.find(node =>
-            worldX >= node.x && worldX <= node.x + 180 &&
-            worldY >= node.y && worldY <= node.y + 80
-        );
+        return this.nodes.find(node => {
+            const nodeElement = document.getElementById(`node-${node.id}`);
+            const nodeDimensions = this.getNodeDimensions(node, nodeElement);
+            const nodeWidth = nodeDimensions.width;
+            const nodeHeight = nodeDimensions.height;
+            return worldX >= node.x && worldX <= node.x + nodeWidth &&
+                worldY >= node.y && worldY <= node.y + nodeHeight;
+        });
     }
 
     selectToolByType(toolType) {
@@ -779,7 +810,8 @@ class BehaviorTreeEditor {
             'PARALLEL': '并行节点',
             'CONDITION': '条件节点',
             'ACTION': '行为节点',
-            'DECORATOR': '装饰节点'
+            'DECORATOR': '装饰节点',
+            'BLACKBOARD': '黑板节点'
         };
         return typeNames[type] || `${type}节点`;
     }
@@ -814,37 +846,6 @@ class BehaviorTreeEditor {
         return node;
     }
 
-    expandCanvasIfNeeded(x, y) {
-        const nodeWidth = 180;
-        const nodeHeight = 80;
-        const padding = 200; // 减少padding避免过度扩展
-
-        // 获取当前画布尺寸
-        const currentWidth = parseInt(this.canvas.style.width) || 2000;
-        const currentHeight = parseInt(this.canvas.style.height) || 2000;
-
-        // 只在需要的时候适度扩展
-        const requiredWidth = x + nodeWidth + padding;
-        const requiredHeight = y + nodeHeight + padding;
-
-        // 只有超出当前画布时才扩展
-        if (requiredWidth > currentWidth || requiredHeight > currentHeight) {
-            const newWidth = Math.max(requiredWidth, currentWidth, 2000);
-            const newHeight = Math.max(requiredHeight, currentHeight, 2000);
-
-            // 更新画布尺寸
-            this.canvas.style.width = `${newWidth}px`;
-            this.canvas.style.height = `${newHeight}px`;
-
-            // 更新SVG连线画布
-            this.connectionsSvg.style.width = `${newWidth}px`;
-            this.connectionsSvg.style.height = `${newHeight}px`;
-            this.connectionsSvg.setAttribute('width', newWidth);
-            this.connectionsSvg.setAttribute('height', newHeight);
-            this.connectionsSvg.setAttribute('viewBox', `0 0 ${newWidth} ${newHeight}`);
-        }
-    }
-
     createNodeElement(node) {
         const nodeElement = document.createElement('div');
         nodeElement.className = 'node';
@@ -865,6 +866,11 @@ class BehaviorTreeEditor {
         // 添加序号拖拽事件监听器
         this.setupChildOrderDragListeners(nodeElement, node);
         this.setupNodeOrderBadgeDragListeners(nodeElement, node);
+
+        // 为黑板节点设置按钮事件
+        if (node.type === 'BLACKBOARD') {
+            this.setupBlackboardEvents(nodeElement, node);
+        }
 
         return nodeElement;
     }
@@ -907,6 +913,25 @@ class BehaviorTreeEditor {
             content = `<p>子节点: ${childCount}</p>`;
         } else if (['CONDITION', 'ACTION'].includes(node.type)) {
             content = `<p>函数: ${node.func || '未设置'}</p>`;
+        } else if (['BLACKBOARD'].includes(node.type)) {
+                    content = `
+                <div class="blackboard-content">
+                    <div class="blackboard-header">
+                        <span>数据字段</span>
+                        <button class="add-field-btn" title="添加字段">+</button>
+                    </div>
+                    <div class="blackboard-fields">
+                        ${(node.fields || []).map((field, index) => `
+                            <div class="field-item" data-index="${index}">
+                                <input type="text" class="field-key" value="${field.key}" placeholder="键名">
+                                <input type="text" class="field-value" value="${field.value}" placeholder="值">
+                                <input type="text" class="field-comment" value="${field.comment || ''}" placeholder="备注说明">
+                                <button class="remove-field-btn" title="删除字段">×</button>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
         }
 
         // 获取该节点在父节点中的序号
@@ -959,9 +984,6 @@ class BehaviorTreeEditor {
 
     handleNodeMouseEnter(e, node) {
         if (this.currentTool !== 'connect') return;
-
-        // 显示连接点并开始智能高亮
-        this.showConnectionPointsWithAutoSelection(node, e);
 
         // 如果已经选择了源节点的连接点，绘制虚线到鼠标位置
         if (this.connectingNode && this.selectedFromPoint) {
@@ -1032,10 +1054,31 @@ class BehaviorTreeEditor {
         } else if (this.connectingNode.id !== node.id) {
             // 第二步：选择目标节点，完成连接
 
-            // 使用当前高亮的连接点，如果没有则使用默认的左侧连接点
-            this.selectedToPoint = this.highlightedConnectionPoint &&
-                this.highlightedConnectionPoint.node.id === node.id ?
-                this.highlightedConnectionPoint.side : 'left';
+            // 确保目标节点显示连接点并更新高亮状态
+            this.showConnectionPoints(node);
+            
+            // 获取最优的目标连接点
+            let selectedToPoint = 'left'; // 默认左侧
+            
+            // 如果有高亮的连接点且属于目标节点，使用它
+            if (this.highlightedConnectionPoint && this.highlightedConnectionPoint.node.id === node.id) {
+                selectedToPoint = this.highlightedConnectionPoint.side;
+            } else {
+                // 否则计算最优连接点
+                const sourcePhysicalX = this.connectingNode.x + 2000;
+                const sourcePhysicalY = this.connectingNode.y + 2000;
+                const sourcePoint = this.getConnectionPoint(
+                    { x: sourcePhysicalX, y: sourcePhysicalY, id: this.connectingNode.id },
+                    this.selectedFromPoint
+                );
+                
+                selectedToPoint = this.findOptimalConnectionSide(
+                    { x: node.x + 2000, y: node.y + 2000, id: node.id },
+                    { x: sourcePoint.x, y: sourcePoint.y }
+                );
+            }
+
+            this.selectedToPoint = selectedToPoint;
 
             // 执行连接
             if (this.canConnect(this.connectingNode, node)) {
@@ -1074,29 +1117,30 @@ class BehaviorTreeEditor {
         const nodeElement = document.getElementById(`node-${node.id}`);
         if (!nodeElement) return;
 
+        // 获取节点实际尺寸
+        const nodeDimensions = this.getNodeDimensions(node, nodeElement);
+
         // 直接使用节点的世界坐标计算连接点位置
         const nodePhysicalX = node.x + 2000; // 转换为画布物理坐标
         const nodePhysicalY = node.y + 2000;
-        const nodeWidth = 180;
-        const nodeHeight = 80;
 
         // 计算连接点在画布容器中的显示位置
         const points = {
             top: {
-                x: (nodePhysicalX + nodeWidth / 2) * this.scale + this.offsetX,
+                x: (nodePhysicalX + nodeDimensions.width / 2) * this.scale + this.offsetX,
                 y: nodePhysicalY * this.scale + this.offsetY
             },
             right: {
-                x: (nodePhysicalX + nodeWidth) * this.scale + this.offsetX,
-                y: (nodePhysicalY + nodeHeight / 2) * this.scale + this.offsetY
+                x: (nodePhysicalX + nodeDimensions.width) * this.scale + this.offsetX,
+                y: (nodePhysicalY + nodeDimensions.height / 2) * this.scale + this.offsetY
             },
             bottom: {
-                x: (nodePhysicalX + nodeWidth / 2) * this.scale + this.offsetX,
-                y: (nodePhysicalY + nodeHeight) * this.scale + this.offsetY
+                x: (nodePhysicalX + nodeDimensions.width / 2) * this.scale + this.offsetX,
+                y: (nodePhysicalY + nodeDimensions.height) * this.scale + this.offsetY
             },
             left: {
                 x: nodePhysicalX * this.scale + this.offsetX,
-                y: (nodePhysicalY + nodeHeight / 2) * this.scale + this.offsetY
+                y: (nodePhysicalY + nodeDimensions.height / 2) * this.scale + this.offsetY
             }
         };
 
@@ -1189,8 +1233,13 @@ class BehaviorTreeEditor {
         const nodePhysicalY = node.y + 2000;
         const nodeScreenX = nodePhysicalX * this.scale + this.offsetX;
         const nodeScreenY = nodePhysicalY * this.scale + this.offsetY;
-        const nodeWidth = 180 * this.scale;
-        const nodeHeight = 80 * this.scale;
+        const nodeElement = document.getElementById(`node-${node.id}`);
+        if (!nodeElement) return;
+
+        // 获取节点实际尺寸
+        const nodeDimensions = this.getNodeDimensions(node, nodeElement);
+        const nodeWidth = nodeDimensions.width * this.scale;
+        const nodeHeight = nodeDimensions.height * this.scale;
 
         // 计算四个连接点的屏幕位置
         const connectionPoints = {
@@ -1236,11 +1285,6 @@ class BehaviorTreeEditor {
         if (nearestPoint) {
             const currentConnectionKey = `${node.id}-${nearestPoint.side}`;
 
-            // ⭐ 移除重复检查逻辑，确保每次都能高亮
-            // if (this.lastHighlightedConnectionKey === currentConnectionKey) {
-            //     return; 
-            // }
-
             // 更新最近连接点记录
             this.lastHighlightedConnectionKey = currentConnectionKey;
 
@@ -1263,6 +1307,17 @@ class BehaviorTreeEditor {
                 side: nearestPoint.side
             };
         }
+    }
+
+    getNodeDimensions(node, nodeElement) {
+        const rect = nodeElement.getBoundingClientRect();
+        const containerRect = this.canvasContainer.getBoundingClientRect();
+
+        // 将屏幕尺寸转换为画布物理坐标尺寸
+        return {
+            width: rect.width / this.scale,
+            height: rect.height / this.scale
+        };
     }
 
     hideAllConnectionPoints() {
@@ -1293,7 +1348,36 @@ class BehaviorTreeEditor {
             return false;
         }
 
+        // 黑板节点连接限制：只能连接到根节点（没有父节点的节点，或只有黑板节点作为父节点的节点）
+        if (fromNode.type === 'BLACKBOARD') {
+            // 检查目标节点是否为根节点
+            if (!this.isRootOrBlackboardOnlyChild(toNode)) {
+                return false;
+            }
+        }
+
         return true;
+    }
+
+    // 检查节点是否为根节点或只有黑板节点作为父节点的节点
+    isRootOrBlackboardOnlyChild(node) {
+        // 查找指向该节点的所有连接
+        const incomingConnections = this.connections.filter(conn => conn.to === node.id);
+        
+        // 如果没有任何连接指向该节点，说明它是根节点
+        if (incomingConnections.length === 0) {
+            return true;
+        }
+        
+        // 如果有连接指向该节点，检查所有父节点是否都是黑板节点
+        for (const conn of incomingConnections) {
+            const parentNode = this.nodes.find(n => n.id === conn.from);
+            if (!parentNode || parentNode.type !== 'BLACKBOARD') {
+                return false; // 有非黑板父节点，不符合条件
+            }
+        }
+        
+        return true; // 所有父节点都是黑板节点（或没有父节点）
     }
 
     addConnection(fromId, toId, fromPoint = 'right', toPoint = 'left') {
@@ -1346,13 +1430,32 @@ class BehaviorTreeEditor {
         const toPhysicalX = toNode.x + 2000;
         const toPhysicalY = toNode.y + 2000;
 
-        // 使用存储的连接点，如果没有则使用默认值
-        const fromPoint = this.getConnectionPoint(
-            { x: fromPhysicalX, y: fromPhysicalY },
+        // 获取节点实际尺寸
+        const fromNodeElement = document.getElementById(`node-${fromNode.id}`);
+        const toNodeElement = document.getElementById(`node-${toNode.id}`);
+        
+        let fromWidth = 180, fromHeight = 80;
+        let toWidth = 180, toHeight = 80;
+        
+        if (fromNodeElement) {
+            const fromDimensions = this.getNodeDimensions(fromNode, fromNodeElement);
+            fromWidth = fromDimensions.width;
+            fromHeight = fromDimensions.height;
+        }
+        
+        if (toNodeElement) {
+            const toDimensions = this.getNodeDimensions(toNode, toNodeElement);
+            toWidth = toDimensions.width;
+            toHeight = toDimensions.height;
+        }
+
+        // 计算连接点位置
+        const fromPoint = this.calculateConnectionPoint(
+            fromPhysicalX, fromPhysicalY, fromWidth, fromHeight,
             connection.fromPoint || 'right'
         );
-        const toPoint = this.getConnectionPoint(
-            { x: toPhysicalX, y: toPhysicalY },
+        const toPoint = this.calculateConnectionPoint(
+            toPhysicalX, toPhysicalY, toWidth, toHeight,
             connection.toPoint || 'left'
         );
 
@@ -1385,9 +1488,33 @@ class BehaviorTreeEditor {
         return path;
     }
 
+    // 计算连接点位置的简化方法
+    calculateConnectionPoint(x, y, width, height, side) {
+        const points = {
+            top: { x: x + width / 2, y: y },
+            right: { x: x + width, y: y + height / 2 },
+            bottom: { x: x + width / 2, y: y + height },
+            left: { x: x, y: y + height / 2 }
+        };
+
+        return points[side] || points.right;
+    }
+
     getConnectionPoint(node, side) {
-        const nodeWidth = 180;
-        const nodeHeight = 80;
+        // 获取节点实际尺寸
+        let nodeWidth = 180;
+        let nodeHeight = 80;
+
+        // 如果node有id属性，说明是完整的节点对象，需要获取实际尺寸
+        if (node.id !== undefined) {
+            const nodeElement = document.getElementById(`node-${node.id}`);
+            if (nodeElement) {
+                const dimensions = this.getNodeDimensions({ id: node.id }, nodeElement);
+                nodeWidth = dimensions.width;
+                nodeHeight = dimensions.height;
+            }
+        }
+        // 如果node只是坐标对象（如{x: 100, y: 100}），使用默认尺寸
 
         // 四个边的中点
         const points = {
@@ -1400,9 +1527,100 @@ class BehaviorTreeEditor {
         return points[side] || points.right;
     }
 
+    // 找到最优的连接点位置（返回坐标）
+    findOptimalConnectionPoint(targetNode, sourcePoint) {
+        // 获取目标节点实际尺寸
+        let nodeWidth = 180;
+        let nodeHeight = 80;
+
+        if (targetNode.id !== undefined) {
+            const nodeElement = document.getElementById(`node-${targetNode.id}`);
+            const dimensions = this.getNodeDimensions({ id: targetNode.id }, nodeElement);
+            nodeWidth = dimensions.width;
+            nodeHeight = dimensions.height;
+        }
+
+        // 计算四个连接点
+        const connectionPoints = {
+            top: { x: targetNode.x + nodeWidth / 2, y: targetNode.y },
+            right: { x: targetNode.x + nodeWidth, y: targetNode.y + nodeHeight / 2 },
+            bottom: { x: targetNode.x + nodeWidth / 2, y: targetNode.y + nodeHeight },
+            left: { x: targetNode.x, y: targetNode.y + nodeHeight / 2 }
+        };
+
+        // 找到离源点最近的连接点
+        let bestPoint = connectionPoints.left;
+        let minDistance = Infinity;
+
+        Object.values(connectionPoints).forEach(point => {
+            const distance = Math.sqrt(
+                Math.pow(point.x - sourcePoint.x, 2) +
+                Math.pow(point.y - sourcePoint.y, 2)
+            );
+
+            if (distance < minDistance) {
+                minDistance = distance;
+                bestPoint = point;
+            }
+        });
+
+        return bestPoint;
+    }
+
+    // 找到最优的连接点方向（返回方向名称）
+    findOptimalConnectionSide(targetNode, sourcePoint) {
+        // 获取目标节点实际尺寸
+        let nodeWidth = 180;
+        let nodeHeight = 80;
+
+        if (targetNode.id !== undefined) {
+            const nodeElement = document.getElementById(`node-${targetNode.id}`);
+            if (nodeElement) {
+                const dimensions = this.getNodeDimensions({ id: targetNode.id }, nodeElement);
+                nodeWidth = dimensions.width;
+                nodeHeight = dimensions.height;
+            }
+        }
+
+        // 计算四个连接点
+        const connectionPoints = {
+            top: { x: targetNode.x + nodeWidth / 2, y: targetNode.y, side: 'top' },
+            right: { x: targetNode.x + nodeWidth, y: targetNode.y + nodeHeight / 2, side: 'right' },
+            bottom: { x: targetNode.x + nodeWidth / 2, y: targetNode.y + nodeHeight, side: 'bottom' },
+            left: { x: targetNode.x, y: targetNode.y + nodeHeight / 2, side: 'left' }
+        };
+
+        // 找到离源点最近的连接点
+        let bestSide = 'left';
+        let minDistance = Infinity;
+
+        Object.values(connectionPoints).forEach(point => {
+            const distance = Math.sqrt(
+                Math.pow(point.x - sourcePoint.x, 2) +
+                Math.pow(point.y - sourcePoint.y, 2)
+            );
+
+            if (distance < minDistance) {
+                minDistance = distance;
+                bestSide = point.side;
+            }
+        });
+
+        return bestSide;
+    }
+
     getOptimalConnectionPoint(node, targetCenter, isOutput) {
-        const nodeWidth = 180;
-        const nodeHeight = 80;
+        // 获取节点实际尺寸
+        let nodeWidth = 180;
+        let nodeHeight = 80;
+        // 如果node有id属性，说明是完整的节点对象，需要获取实际尺寸
+        if (node.id !== undefined) {
+            const nodeElement = document.getElementById(`node-${node.id}`);
+            const dimensions = this.getNodeDimensions(node, nodeElement);
+            nodeWidth = dimensions.width;
+            nodeHeight = dimensions.height;
+        }
+        // 如果node只是坐标对象（如{x: 100, y: 100}），使用默认尺寸
 
         // 四个边的中点
         const points = {
@@ -1509,6 +1727,11 @@ class BehaviorTreeEditor {
         } else {
             this.hideAllDecoratorAttributes();
         }
+
+        // 在属性填充完成后，检查并应用黑板引用样式
+        setTimeout(() => {
+            this.updateBlackboardReferences();
+        }, 0);
     }
 
     handleDecoratorTypeChange() {
@@ -1555,6 +1778,11 @@ class BehaviorTreeEditor {
                 document.getElementById('cooldown-duration').value = this.selectedNode.cooldownDuration || '';
                 break;
         }
+
+        // 在装饰器属性填充完成后，检查并应用黑板引用样式
+        setTimeout(() => {
+            this.updateBlackboardReferences();
+        }, 0);
     }
 
     hideAllDecoratorAttributes() {
@@ -1656,8 +1884,6 @@ class BehaviorTreeEditor {
 
         this.updateCanvasTransform();
         document.getElementById('zoom-level').textContent = '100%';
-
-        console.log(`重置画布: 画布(0,0)位置居中显示, 偏移(${this.offsetX},${this.offsetY})`);
     }
 
     startCanvasDrag(e) {
@@ -1695,6 +1921,11 @@ class BehaviorTreeEditor {
         if (e.target === this.canvas) {
             this.selectNode(null);
             this.resetConnectionMode();
+            
+            // 让所有输入框失去焦点
+            document.querySelectorAll('input, textarea').forEach(input => {
+                input.blur();
+            });
         }
     }
 
@@ -1711,45 +1942,117 @@ class BehaviorTreeEditor {
     }
 
     exportLua() {
-        const rootNodes = this.nodes.filter(node =>
+        // 首先找到所有根节点（包括黑板节点）
+        const allRootNodes = this.nodes.filter(node =>
             !this.connections.some(conn => conn.to === node.id));
 
-        if (rootNodes.length === 0) {
+        if (allRootNodes.length === 0) {
             this.showNotification('没有根节点可导出', 'error');
             return;
         }
 
-        const luaCode = this.generateLuaCode(rootNodes[0]);
+        // 检查是否有黑板节点作为根节点
+        const blackboardRoots = allRootNodes.filter(node => node.type === 'BLACKBOARD');
+        const nonBlackboardRoots = allRootNodes.filter(node => node.type !== 'BLACKBOARD');
+
+        let actualRoot = null;
+
+        if (blackboardRoots.length > 0) {
+            // 如果有黑板根节点，找到黑板节点连接的第一个非黑板子节点作为实际根节点
+            for (const blackboardRoot of blackboardRoots) {
+                const children = this.connections
+                    .filter(conn => conn.from === blackboardRoot.id)
+                    .map(conn => this.nodes.find(n => n.id === conn.to))
+                    .filter(child => child && child.type !== 'BLACKBOARD');
+                
+                if (children.length > 0) {
+                    actualRoot = children[0]; // 使用第一个子节点作为实际根节点
+                    break;
+                }
+            }
+        }
+
+        // 如果没有找到黑板连接的子节点，使用非黑板根节点
+        if (!actualRoot && nonBlackboardRoots.length > 0) {
+            actualRoot = nonBlackboardRoots[0];
+        }
+
+        if (!actualRoot) {
+            this.showNotification('没有有效的根节点可导出', 'error');
+            return;
+        }
+
+        const luaCode = this.generateLuaCode(actualRoot);
         this.downloadFile(luaCode, `behavior_tree_${this.currentFileName}.lua`, 'text/plain');
         this.showNotification('Lua文件已导出');
     }
 
     generateLuaCode(node) {
+        // 跳过黑板节点
+        if (node.type === 'BLACKBOARD') {
+            return '';
+        }
+
         let code = `return {\n    type = BT.NodeType.${node.decoratorType ?? node.type},\n    name = "${node.name}"`;
 
-        if (node.func) code += `,\n    func = ${this.formatFunctionOutput(node.func)}`;
-        if (node.policy) code += `,\n    policy = BT.ParallelPolicy.${node.policy}`;
-        if (node.timeoutDuration) code += `,\n    duration = ${node.timeoutDuration}`;
-        if (node.cooldownDuration) code += `,\n    duration = ${node.cooldownDuration}`;
-        if (node.repeaterCount) code += `,\n    max_retries = ${node.repeaterCount}`;
-        if (node.retryCount) code += `,\n    count = ${node.retryCount}`;
+        // 处理函数名，支持黑板引用
+        if (node.func) {
+            const funcValue = this.formatBlackboardReference(node.func, true);
+            if (this.isBlackboardReference(node.func)) {
+                code += `,\n    func = ${funcValue}`;
+            } else {
+                code += `,\n    func = ${this.formatFunctionOutput(node.func)}`;
+            }
+        }
 
-        // 获取子节点（已经按正确顺序排列）
+        // 处理策略，支持黑板引用
+        if (node.policy) {
+            const policyValue = this.formatBlackboardReference(node.policy, true);
+            if (this.isBlackboardReference(node.policy)) {
+                code += `,\n    policy = ${policyValue}`;
+            } else {
+                code += `,\n    policy = BT.ParallelPolicy.${node.policy}`;
+            }
+        }
+
+        // 处理装饰器参数，支持黑板引用
+        if (node.timeoutDuration) {
+            const timeoutValue = this.formatBlackboardReference(node.timeoutDuration, true);
+            code += `,\n    duration = ${timeoutValue}`;
+        }
+
+        if (node.cooldownDuration) {
+            const cooldownValue = this.formatBlackboardReference(node.cooldownDuration, true);
+            code += `,\n    duration = ${cooldownValue}`;
+        }
+
+        if (node.repeaterCount) {
+            const repeaterValue = this.formatBlackboardReference(node.repeaterCount, true);
+            code += `,\n    max_retries = ${repeaterValue}`;
+        }
+
+        if (node.retryCount) {
+            const retryValue = this.formatBlackboardReference(node.retryCount, true);
+            code += `,\n    count = ${retryValue}`;
+        }
+
+        // 获取子节点（已经按正确顺序排列），排除黑板节点
         const children = this.connections
             .filter(conn => conn.from === node.id)
             .map(conn => this.nodes.find(n => n.id === conn.to))
-            .filter(Boolean);
+            .filter(child => child && child.type !== 'BLACKBOARD');
 
         if (children.length > 0) {
             code += ',\n    children = {\n';
-            children.forEach((child, index) => {
-                const childCode = this.generateLuaCode(child)
+            const validChildren = children.map(child => this.generateLuaCode(child)).filter(childCode => childCode !== '');
+            validChildren.forEach((childCode, index) => {
+                const formattedChildCode = childCode
                     .replace(/^return /, '')
                     .split('\n')
                     .map(line => '        ' + line)
                     .join('\n');
-                code += childCode;
-                if (index < children.length - 1) code += ',';
+                code += formattedChildCode;
+                if (index < validChildren.length - 1) code += ',';
                 code += '\n';
             });
             code += '    }';
@@ -1868,16 +2171,19 @@ class BehaviorTreeEditor {
 
     centerViewOnNodes() {
         if (this.nodes.length === 0) return;
-
-        // 计算所有节点的边界（基于画布物理坐标）
-        const nodeWidth = 180;
-        const nodeHeight = 80;
-
         // 将世界坐标转换为画布物理坐标
         const minX = Math.min(...this.nodes.map(n => n.x + 2000));
         const minY = Math.min(...this.nodes.map(n => n.y + 2000));
-        const maxX = Math.max(...this.nodes.map(n => n.x + 2000 + nodeWidth));
-        const maxY = Math.max(...this.nodes.map(n => n.y + 2000 + nodeHeight));
+        const maxX = Math.max(...this.nodes.map(n => {
+            const nodeElement = document.getElementById(`node-${n.id}`);
+            const nodeDimensions = this.getNodeDimensions(n, nodeElement);
+            return n.x + 2000 + nodeDimensions.width
+        }));
+        const maxY = Math.max(...this.nodes.map(n => {
+            const nodeElement = document.getElementById(`node-${n.id}`);
+            const nodeDimensions = this.getNodeDimensions(n, nodeElement);
+            return n.y + 2000 + nodeDimensions.height
+        }));
 
         // 计算节点区域的中心点（画布物理坐标）
         const centerX = (minX + maxX) / 2;
@@ -1894,8 +2200,6 @@ class BehaviorTreeEditor {
 
         // 更新画布变换
         this.updateCanvasTransform();
-
-        console.log(`定位到节点: 中心点(${centerX},${centerY}), 偏移(${this.offsetX},${this.offsetY})`);
     }
 
     ensureConnectionOrder() {
@@ -2307,6 +2611,12 @@ class BehaviorTreeEditor {
 
         if (!parentConnection) {
             return ''; // 不是子节点，不显示序号
+        }
+
+        // 检查父节点是否是黑板节点，如果是则不显示序号
+        const parentNode = this.nodes.find(n => n.id === parentConnection.from);
+        if (parentNode && parentNode.type === 'BLACKBOARD') {
+            return ''; // 黑板节点连接的子节点不显示序号
         }
 
         const order = parentConnection.order !== undefined ? parentConnection.order : 0;
@@ -3018,6 +3328,393 @@ class BehaviorTreeEditor {
         const currentFile = this.getCurrentFileName();
         localStorage.setItem('lastUsedFile', currentFile);
     }
+
+    // 设置黑板节点的按钮事件
+    setupBlackboardEvents(nodeElement, node) {
+        // 等待DOM元素完全创建
+        setTimeout(() => {
+            // 为增加按钮添加事件处理
+            const addBtn = nodeElement.querySelector('.add-field-btn');
+            if (addBtn) {
+                addBtn.addEventListener('click', (e) => {
+                    e.stopPropagation(); // 阻止事件冒泡到节点拖动
+                    this.addBlackboardField(node);
+                });
+
+                // 阻止按钮区域触发节点拖动
+                addBtn.addEventListener('mousedown', (e) => {
+                    e.stopPropagation();
+                });
+            }
+
+            // 为删除按钮添加事件处理
+            const removeButtons = nodeElement.querySelectorAll('.remove-field-btn');
+            removeButtons.forEach((removeBtn, index) => {
+                removeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation(); // 阻止事件冒泡到节点拖动
+                    this.removeBlackboardField(node, index);
+                });
+
+                // 阻止按钮区域触发节点拖动
+                removeBtn.addEventListener('mousedown', (e) => {
+                    e.stopPropagation();
+                });
+            });
+
+            // 为输入框添加事件处理（阻止拖动）
+            const inputs = nodeElement.querySelectorAll('.field-key, .field-value, .field-comment');
+            inputs.forEach(input => {
+                input.addEventListener('mousedown', (e) => {
+                    e.stopPropagation(); // 阻止触发节点拖动
+                });
+
+                // 监听输入变化
+                input.addEventListener('input', (e) => {
+                    this.updateBlackboardField(node, input);
+                });
+
+                // 按下Enter键失去焦点
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        input.blur();
+                    }
+                });
+            });
+        }, 0);
+    }
+
+    // 添加黑板字段
+    addBlackboardField(node) {
+        // 初始化fields数组如果不存在
+        if (!node.fields) {
+            node.fields = [];
+        }
+
+        // 添加新字段
+        node.fields.push({
+            key: '',
+            value: ''
+        });
+
+        // 更新节点显示
+        this.updateSingleNodeDisplay(node);
+
+        // 重新绑定事件
+        const nodeElement = document.getElementById(`node-${node.id}`);
+        if (nodeElement) {
+            this.setupBlackboardEvents(nodeElement, node);
+        }
+
+        // 检查键重复
+        this.checkBlackboardKeyDuplicates();
+
+        // 重新绘制连线（因为节点尺寸可能发生变化）
+        this.drawConnections();
+
+        // 保存更改
+        this.saveToStorage();
+        this.saveHistoryState('添加黑板字段');
+        this.showNotification('已添加新字段');
+    }
+
+    // 删除黑板字段
+    removeBlackboardField(node, index) {
+        if (!node.fields || index < 0 || index >= node.fields.length) {
+            return;
+        }
+
+        // 删除指定字段
+        node.fields.splice(index, 1);
+
+        // 更新节点显示
+        this.updateSingleNodeDisplay(node);
+
+        // 重新绑定事件
+        const nodeElement = document.getElementById(`node-${node.id}`);
+        if (nodeElement) {
+            this.setupBlackboardEvents(nodeElement, node);
+        }
+
+        // 重新绘制连线（因为节点尺寸可能发生变化）
+        this.drawConnections();
+
+        // 保存更改
+        this.saveToStorage();
+        this.saveHistoryState('删除黑板字段');
+        this.showNotification('已删除字段');
+    }
+
+    // 更新黑板字段值
+    updateBlackboardField(node, inputElement) {
+        const fieldItem = inputElement.closest('.field-item');
+        if (!fieldItem) return;
+
+        const index = parseInt(fieldItem.dataset.index);
+        if (!node.fields || index < 0 || index >= node.fields.length) {
+            return;
+        }
+
+        const isKeyField = inputElement.classList.contains('field-key');
+        const isValueField = inputElement.classList.contains('field-value');
+        const isCommentField = inputElement.classList.contains('field-comment');
+        const newValue = inputElement.value;
+
+        if (isKeyField) {
+            node.fields[index].key = newValue;
+            // 检测键重复并更新样式
+            this.checkBlackboardKeyDuplicates();
+        } else if (isValueField) {
+            node.fields[index].value = newValue;
+        } else if (isCommentField) {
+            node.fields[index].comment = newValue;
+        }
+
+        // 保存更改
+        this.saveToStorage();
+
+        // 延迟保存历史状态，避免频繁输入时产生过多历史记录
+        clearTimeout(this.blackboardFieldSaveTimeout);
+        this.blackboardFieldSaveTimeout = setTimeout(() => {
+            this.saveHistoryState('修改黑板字段');
+        }, 1000);
+    }
+
+    // 检查黑板中所有字段的键是否重复，如果重复就标红
+    checkBlackboardKeyDuplicates() {
+        // 收集所有黑板节点的所有字段键
+        const allKeys = {};
+        
+        // 遍历所有黑板节点
+        this.nodes.forEach(node => {
+            if (node.type === 'BLACKBOARD' && node.fields) {
+                node.fields.forEach((field, fieldIndex) => {
+                    if (field.key && field.key.trim()) {
+                        const key = field.key.trim();
+                        if (!allKeys[key]) {
+                            allKeys[key] = [];
+                        }
+                        allKeys[key].push({
+                            nodeId: node.id,
+                            fieldIndex: fieldIndex
+                        });
+                    }
+                });
+            }
+        });
+
+        // 清除所有字段的错误样式
+        document.querySelectorAll('.field-key').forEach(input => {
+            input.classList.remove('error', 'duplicate-key');
+        });
+
+        // 标记重复的键
+        Object.keys(allKeys).forEach(key => {
+            const occurrences = allKeys[key];
+            if (occurrences.length > 1) {
+                // 这个键出现了多次，标记所有相关的输入框
+                occurrences.forEach(occurrence => {
+                    const nodeElement = document.getElementById(`node-${occurrence.nodeId}`);
+                    if (nodeElement) {
+                        const fieldItem = nodeElement.querySelector(`[data-index="${occurrence.fieldIndex}"]`);
+                        if (fieldItem) {
+                            const keyInput = fieldItem.querySelector('.field-key');
+                            if (keyInput) {
+                                keyInput.classList.add('error', 'duplicate-key');
+                                keyInput.title = `键名 "${key}" 重复，请修改为唯一键名`;
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    }
+
+    // 更新单个节点显示
+    updateSingleNodeDisplay(node) {
+        const nodeElement = document.getElementById(`node-${node.id}`);
+        if (nodeElement) {
+            nodeElement.innerHTML = this.generateNodeHTML(node);
+        }
+    }
+
+    // 检测和应用黑板引用样式
+    isBlackboardReference(value) {
+        if (!value || typeof value !== 'string') return false;
+        // 检查是否是@开头但不是\@转义的格式
+        return /^@[^@\s]+$/.test(value) && !value.startsWith('\\@');
+    }
+
+    // 检查黑板引用是否有效（键名是否存在于黑板中）
+    isValidBlackboardReference(keyName) {
+        // 获取所有黑板节点的字段
+        for (const node of this.nodes) {
+            if (node.type === 'BLACKBOARD' && node.fields) {
+                for (const field of node.fields) {
+                    if (field.key && field.key.trim() === keyName) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    // 获取黑板中指定键的默认值
+    getBlackboardDefaultValue(keyName) {
+        for (const node of this.nodes) {
+            if (node.type === 'BLACKBOARD' && node.fields) {
+                for (const field of node.fields) {
+                    if (field.key && field.key.trim() === keyName) {
+                        return field.value || '';
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    // 更新所有输入框的黑板引用样式
+    updateBlackboardReferences() {
+        // 获取所有相关输入框（除了节点名称、位置、节点类型、注释说明）
+        const inputs = document.querySelectorAll('#node-function, #node-policy, #repeater-count, #timeout-duration, #retry-count, #cooldown-duration');
+        
+        inputs.forEach(input => {
+            this.updateInputBlackboardStyle(input);
+        });
+    }
+
+    // 更新单个输入框的黑板引用样式
+    updateInputBlackboardStyle(input) {
+        const value = input.value;
+        
+        // 清除之前的样式
+        input.classList.remove('blackboard-reference', 'blackboard-reference-invalid', 'number-validation-error');
+        
+        if (this.isBlackboardReference(value)) {
+            const keyName = value.substring(1); // 去掉@符号
+            if (this.isValidBlackboardReference(keyName)) {
+                input.classList.add('blackboard-reference');
+                input.title = `黑板引用: ${keyName}`;
+            } else {
+                input.classList.add('blackboard-reference-invalid');
+                input.title = `无效的黑板引用: ${keyName} (键名不存在)`;
+            }
+        } else {
+            // 检查是否需要数字验证
+            if (this.shouldValidateAsNumber(input)) {
+                this.validateNumberInput(input, value);
+            } else {
+                input.title = '';
+            }
+        }
+    }
+
+    // 判断输入框是否需要数字验证
+    shouldValidateAsNumber(input) {
+        const numericFields = ['repeater-count', 'timeout-duration', 'retry-count', 'cooldown-duration'];
+        return numericFields.includes(input.id);
+    }
+
+    // 验证数字输入
+    validateNumberInput(input, value) {
+        if (!value || value.trim() === '') {
+            input.title = '';
+            return; // 空值不验证，允许为空
+        }
+
+        const trimmedValue = value.trim();
+        let isValid = false;
+        let errorMessage = '';
+
+        switch (input.id) {
+            case 'repeater-count':
+                // 重复次数：整数，-1表示无限重复
+                isValid = /^-?\d+$/.test(trimmedValue) && parseInt(trimmedValue) >= -1;
+                errorMessage = '重复次数必须是大于等于-1的整数（-1表示无限重复）';
+                break;
+            
+            case 'timeout-duration':
+                // 超时时间：正数，支持小数
+                isValid = /^\d+(\.\d+)?$/.test(trimmedValue) && parseFloat(trimmedValue) > 0;
+                errorMessage = '超时时间必须是大于0的数字';
+                break;
+            
+            case 'retry-count':
+                // 重试次数：正整数
+                isValid = /^\d+$/.test(trimmedValue) && parseInt(trimmedValue) >= 1;
+                errorMessage = '重试次数必须是大于等于1的整数';
+                break;
+            
+            case 'cooldown-duration':
+                // 冷却时间：非负数，支持小数
+                isValid = /^\d+(\.\d+)?$/.test(trimmedValue) && parseFloat(trimmedValue) >= 0;
+                errorMessage = '冷却时间必须是大于等于0的数字';
+                break;
+        }
+
+        if (!isValid) {
+            input.classList.add('number-validation-error');
+            input.title = errorMessage;
+        } else {
+            input.title = '';
+        }
+    }
+
+    // 格式化黑板引用输出为Lua格式
+    formatBlackboardReference(value, forLua = false) {
+        if (!this.isBlackboardReference(value)) {
+            // 处理转义的@符号
+            if (value && value.startsWith('\\@')) {
+                return value.substring(1); // 移除转义符，保留@
+            }
+            return value;
+        }
+
+        const keyName = value.substring(1); // 去掉@符号
+        
+        if (forLua) {
+            // 生成Lua格式的黑板引用
+            const defaultValue = this.getBlackboardDefaultValue(keyName);
+            if (defaultValue !== null && defaultValue !== '') {
+                return `{BT.MessageType.BLACKBOARD, "${keyName}", ${this.formatLuaValue(defaultValue)}}`;
+            } else {
+                return `{BT.MessageType.BLACKBOARD, "${keyName}"}`;
+            }
+        } else {
+            return value; // 保持原格式
+        }
+    }
+
+    // 格式化Lua值
+    formatLuaValue(value) {
+        if (!value || value === '') return '""';
+        
+        // 如果是数字
+        if (!isNaN(value) && !isNaN(parseFloat(value))) {
+            return parseFloat(value).toString();
+        }
+        
+        // 如果是布尔值
+        if (value.toLowerCase() === 'true') return 'true';
+        if (value.toLowerCase() === 'false') return 'false';
+        
+        // 默认作为字符串处理
+        return `"${value.replace(/"/g, '\\"')}"`;
+    }
 }
 
 bte = new BehaviorTreeEditor();
+
+// 为所有相关输入框添加黑板引用检测
+document.addEventListener('DOMContentLoaded', () => {
+    const inputs = document.querySelectorAll('#node-function, #node-policy, #repeater-count, #timeout-duration, #retry-count, #cooldown-duration');
+    
+    inputs.forEach(input => {
+        input.addEventListener('input', () => {
+            if (bte.selectedNode) {
+                bte.updateInputBlackboardStyle(input);
+            }
+        });
+    });
+});

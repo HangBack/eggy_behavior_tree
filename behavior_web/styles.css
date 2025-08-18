@@ -351,6 +351,19 @@ body {
     background: #f1c40f;
 }
 
+.node-type[data-type="BLACKBOARD"] {
+    background: rgba(96, 104, 120, 0.15);
+    border: 1px solid rgba(96, 104, 120, 0.4);
+}
+
+.node-type[data-type="BLACKBOARD"]:hover {
+    background: rgba(96, 104, 120, 0.25);
+}
+
+.node-type[data-type="BLACKBOARD"]::before {
+    background: #606878;
+}
+
 .node-type:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
@@ -483,6 +496,13 @@ body {
     background: rgba(241, 196, 15, 0.9);
     border-color: #f1c40f;
     color: #2c3e50;
+}
+
+.node[data-type="BLACKBOARD"] {
+    background: rgba(96, 104, 120, 0.15);
+    border-color: rgba(96, 104, 120, 1);
+    width: 500px;
+    color: #fff;
 }
 
 .node.connecting {
@@ -1612,4 +1632,231 @@ body {
     font-weight: 600;
     font-size: 1rem;
     transition: all 0.2s ease;
+}
+
+/* 黑板节点特殊样式 */
+.blackboard-content {
+    width: 100%;
+    max-width: 100%;
+    pointer-events: auto;
+}
+
+.blackboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.blackboard-header span {
+    font-weight: 600;
+    color: #fff;
+    font-size: 0.9rem;
+}
+
+.add-field-btn {
+    background: rgba(86, 204, 157, 0.8);
+    border: 1px solid rgba(86, 204, 157, 1);
+    color: white;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: bold;
+    transition: all 0.2s ease;
+    padding: 0;
+    pointer-events: auto;
+}
+
+.add-field-btn:hover {
+    background: rgba(86, 204, 157, 1);
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(86, 204, 157, 0.4);
+}
+
+.add-field-btn:active {
+    transform: scale(0.95);
+}
+
+.blackboard-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    pointer-events: auto;
+}
+
+.field-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.2s ease;
+}
+
+.field-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.field-key {
+    max-width: 100px;
+}
+
+.field-value {
+    max-width: 100px;
+}
+
+.field-key, .field-value, .field-comment {
+    flex: 1;
+    background: rgba(30, 35, 48, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    padding: 4px 6px;
+    color: #fff;
+    font-size: 0.8rem;
+    outline: none;
+    transition: all 0.2s ease;
+    pointer-events: auto;
+    user-select: text;
+}
+
+.field-key:focus, .field-value:focus, .field-comment:focus {
+    background: rgba(30, 35, 48, 0.8);
+    border-color: rgba(86, 204, 157, 0.6);
+    box-shadow: 0 0 0 2px rgba(86, 204, 157, 0.2);
+}
+
+.field-key::placeholder, .field-value::placeholder, .field-comment::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 0.75rem;
+}
+
+/* 重复键名的错误样式 */
+.field-key.error {
+    border-color: #e74c3c !important;
+    background-color: rgba(231, 76, 60, 0.15) !important;
+    box-shadow: 0 0 0 2px rgba(231, 76, 60, 0.3) !important;
+}
+
+.field-key.duplicate-key {
+    animation: shake 0.5s;
+}
+
+/* 黑板引用样式 */
+.blackboard-reference {
+    background: linear-gradient(45deg, #e3f2fd, #f3e5f5) !important;
+    border: 2px solid #2196f3 !important;
+    color: #1976d2 !important;
+    font-weight: 500 !important;
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2) !important;
+}
+
+.blackboard-reference:focus {
+    border-color: #1976d2 !important;
+    box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.3) !important;
+}
+
+.blackboard-reference-invalid {
+    background: linear-gradient(45deg, #ffebee, #fce4ec) !important;
+    border: 2px solid #f44336 !important;
+    color: #d32f2f !important;
+    font-weight: 500 !important;
+    box-shadow: 0 0 0 2px rgba(244, 67, 54, 0.2) !important;
+}
+
+.blackboard-reference-invalid:focus {
+    border-color: #d32f2f !important;
+    box-shadow: 0 0 0 3px rgba(244, 67, 54, 0.3) !important;
+}
+
+/* 数字验证错误样式 */
+.number-validation-error {
+    background: linear-gradient(45deg, #fff3e0, #ffe0b2) !important;
+    border: 2px solid #ff9800 !important;
+    color: #f57c00 !important;
+    font-weight: 500 !important;
+    box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.2) !important;
+}
+
+.number-validation-error:focus {
+    border-color: #f57c00 !important;
+    box-shadow: 0 0 0 3px rgba(255, 152, 0, 0.3) !important;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-2px); }
+    75% { transform: translateX(2px); }
+}
+
+.remove-field-btn {
+    background: rgba(231, 76, 60, 0.8);
+    border: 1px solid rgba(231, 76, 60, 1);
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: bold;
+    transition: all 0.2s ease;
+    padding: 0;
+    flex-shrink: 0;
+    pointer-events: auto;
+}
+
+.remove-field-btn:hover {
+    background: rgba(231, 76, 60, 1);
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(231, 76, 60, 0.4);
+}
+
+.remove-field-btn:active {
+    transform: scale(0.9);
+}
+
+/* 黑板节点字段滚动条样式 */
+.blackboard-fields::-webkit-scrollbar {
+    width: 4px;
+}
+
+.blackboard-fields::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+}
+
+.blackboard-fields::-webkit-scrollbar-thumb {
+    background: rgba(96, 104, 120, 0.6);
+    border-radius: 2px;
+}
+
+.blackboard-fields::-webkit-scrollbar-thumb:hover {
+    background: rgba(96, 104, 120, 0.8);
+}
+
+/* 确保黑板节点内容不影响拖动 */
+.node[data-type="BLACKBOARD"] .node-content {
+    pointer-events: none;
+}
+
+.node[data-type="BLACKBOARD"] .blackboard-content {
+    pointer-events: auto;
+}
+
+.node[data-type="BLACKBOARD"] .blackboard-content * {
+    pointer-events: auto;
 }
