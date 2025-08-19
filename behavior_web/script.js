@@ -4253,7 +4253,7 @@ class BehaviorTreeEditor {
 
         const trimmedValue = obj.value.trim();
 
-        if (this.isBlackboardReference(trimmedValue) && field !== "name") {
+        if (this.isBlackboardReference(trimmedValue) && (field !== "name")) {
             const keyName = trimmedValue.substring(1);
             if (this.isValidBlackboardReference(keyName)) {
                 obj.classList.add('blackboard-reference');
