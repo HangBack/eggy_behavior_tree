@@ -2628,6 +2628,12 @@ class BehaviorTreeEditor {
     formatFunctionOutput(functionName) {
         if (!functionName) return '';
 
+        // 如果以?开头，忽略通用路径前缀
+        if (functionName.startsWith('?')) {
+            const actualFunctionName = functionName.substring(1); // 去掉?前缀
+            return `require "${actualFunctionName}"`;
+        }
+
         const prefix = this.getFunctionPrefix();
         if (prefix) {
             return `require "${prefix}.${functionName}"`;
