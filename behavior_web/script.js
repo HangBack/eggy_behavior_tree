@@ -91,7 +91,7 @@ class BehaviorTreeEditor {
 
     setupAutoSave() {
         // 监听属性输入变化，实时保存
-        const inputs = ['node-name', 'node-function', 'node-policy', 'node-comment', 'repeater-count', 'timeout-duration', 'retry-count', 'cooldown-duration'];
+        const inputs = ['node-name', 'node-function', 'node-policy', 'node-comment', 'repeater-count', 'timeout-duration', 'retry-count', 'cooldown-duration', 'wait-duration', 'subtree-reference'];
         inputs.forEach(id => {
             const element = document.getElementById(id);
             element.addEventListener('input', () => {
@@ -158,6 +158,7 @@ class BehaviorTreeEditor {
         const oldTimeoutDuration = this.selectedNode.timeoutDuration;
         const oldRetryCount = this.selectedNode.retryCount;
         const oldCooldownDuration = this.selectedNode.cooldownDuration;
+        const oldWaitDuration = this.selectedNode.waitDuration;
         const oldSubtree = this.selectedNode.subtree;
 
         const newName = document.getElementById('node-name').value;
@@ -168,6 +169,7 @@ class BehaviorTreeEditor {
         const newTimeoutDuration = document.getElementById('timeout-duration').value;
         const newRetryCount = document.getElementById('retry-count').value;
         const newCooldownDuration = document.getElementById('cooldown-duration').value;
+        const newWaitDuration = document.getElementById('wait-duration').value;
         const newSubtree = document.getElementById('subtree-reference').value;
 
         // 检查是否有变更
@@ -179,6 +181,7 @@ class BehaviorTreeEditor {
             oldTimeoutDuration !== newTimeoutDuration ||
             oldRetryCount !== newRetryCount ||
             oldCooldownDuration !== newCooldownDuration ||
+            oldWaitDuration !== newWaitDuration ||
             oldSubtree !== newSubtree;
 
         if (hasChanges) {
@@ -193,6 +196,7 @@ class BehaviorTreeEditor {
                 this.selectedNode.timeoutDuration = newTimeoutDuration;
                 this.selectedNode.retryCount = newRetryCount;
                 this.selectedNode.cooldownDuration = newCooldownDuration;
+                this.selectedNode.waitDuration = oldWaitDuration;
                 this.selectedNode.subtree = newSubtree;
             }
 
@@ -1070,6 +1074,7 @@ class BehaviorTreeEditor {
                 'TIMEOUT': '超时器',
                 'RETRY': '重试器',
                 'COOLDOWN': '冷却器',
+                'WAIT': '等待器',
                 'ALWAYS_SUCCESS': '总是成功',
                 'ALWAYS_FAILURE': '总是失败',
                 'UNTIL_SUCCESS': '直到成功',
@@ -2039,6 +2044,10 @@ class BehaviorTreeEditor {
                 document.getElementById('cooldown-duration-group').style.display = 'block';
                 document.getElementById('cooldown-duration').value = this.selectedNode.cooldownDuration || '';
                 break;
+            case 'WAIT':
+                document.getElementById('wait-duration-group').style.display = 'block';
+                document.getElementById('wait-duration').value = this.selectedNode.waitDuration || '';
+                break;
             case 'SUBTREE_REF':
                 document.getElementById('subtree-reference-group').style.display = 'block';
                 document.getElementById('subtree-reference').value = this.selectedNode.subtree || '';
@@ -2056,6 +2065,7 @@ class BehaviorTreeEditor {
         document.getElementById('timeout-duration-group').style.display = 'none';
         document.getElementById('retry-count-group').style.display = 'none';
         document.getElementById('cooldown-duration-group').style.display = 'none';
+        document.getElementById('wait-duration-group').style.display = 'none';
         document.getElementById('subtree-reference-group').style.display = 'none';
     }
 
@@ -2305,7 +2315,7 @@ class BehaviorTreeEditor {
             return '';
         }
         console.log(node.type);
-        
+
         let code = `return {\n    type = BT.NodeType.${node.decoratorType ?? node.type},\n    name = "${node.name}"`;
 
         // 处理函数名，支持黑板引用
@@ -2344,12 +2354,17 @@ class BehaviorTreeEditor {
         // 处理装饰器参数，支持黑板引用
         if (node.timeoutDuration) {
             const timeoutValue = this.formatBlackboardReference(node.timeoutDuration, true);
-            code += `,\n    duration = ${timeoutValue}`;
+            code += `,\n    timeout_duration = ${timeoutValue}`;
         }
 
         if (node.cooldownDuration) {
             const cooldownValue = this.formatBlackboardReference(node.cooldownDuration, true);
-            code += `,\n    duration = ${cooldownValue}`;
+            code += `,\n    cooldown_duration = ${cooldownValue}`;
+        }
+
+        if (node.waitDuration) {
+            const waitValue = this.formatBlackboardReference(node.waitDuration, true);
+            code += `,\n    wait_duration = ${waitValue}`;
         }
 
         if (node.repeaterCount) {
@@ -3944,7 +3959,7 @@ class BehaviorTreeEditor {
     // 更新所有输入框的黑板引用样式
     updateBlackboardReferences() {
         // 获取所有相关输入框（除了节点名称、位置、节点类型、注释说明）
-        const inputs = document.querySelectorAll('#node-function, #node-policy, #repeater-count, #timeout-duration, #retry-count, #cooldown-duration, #subtree-reference');
+        const inputs = document.querySelectorAll('#node-function, #node-policy, #repeater-count, #timeout-duration, #retry-count, #cooldown-duration, #subtree-reference, #wait-duration');
 
         inputs.forEach(input => {
             this.updateInputBlackboardStyle(input);
@@ -4084,7 +4099,7 @@ class BehaviorTreeEditor {
 
     // 判断输入框是否需要数字验证
     shouldValidateAsNumber(input) {
-        const numericFields = ['repeater-count', 'timeout-duration', 'retry-count', 'cooldown-duration'];
+        const numericFields = ['repeater-count', 'timeout-duration', 'retry-count', 'cooldown-duration', 'wait-duration'];
         return numericFields.includes(input.id);
     }
 
@@ -4122,6 +4137,12 @@ class BehaviorTreeEditor {
                 // 冷却时间：非负数，支持小数
                 isValid = /^\d+(\.\d+)?$/.test(trimmedValue) && parseFloat(trimmedValue) >= 0;
                 errorMessage = '冷却时间必须是大于等于0的数字';
+                break;
+
+            case 'wait-duration':
+                // 冷却时间：非负数，支持小数
+                isValid = /^\d+(\.\d+)?$/.test(trimmedValue) && parseFloat(trimmedValue) >= 0;
+                errorMessage = '等待时间必须是大于等于0的数字';
                 break;
         }
 
@@ -4317,7 +4338,7 @@ bte = new BehaviorTreeEditor();
 
 // 为所有相关输入框添加黑板引用检测
 document.addEventListener('DOMContentLoaded', () => {
-    const inputs = document.querySelectorAll('#node-function, #node-policy, #repeater-count, #timeout-duration, #retry-count, #cooldown-duration, #subtree-reference');
+    const inputs = document.querySelectorAll('#node-function, #node-policy, #repeater-count, #timeout-duration, #retry-count, #cooldown-duration, #subtree-reference, #wait-duration');
 
     inputs.forEach(input => {
         input.addEventListener('input', () => {

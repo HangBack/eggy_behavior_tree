@@ -164,6 +164,12 @@ function TreeBuilder:until_failure(name)
     return self
 end
 
+function TreeBuilder:wait(name, wait_duration)
+    local node = BT.WaitNode:new(name, wait_duration)
+    self:push_node(node)
+    return self
+end
+
 function TreeBuilder:action(name, func, params)
     local node = BT.ActionNode:new(name, func, params)
     self:add_leaf(node)

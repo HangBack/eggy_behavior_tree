@@ -248,6 +248,11 @@ function RepeaterNode:decorate(child_status)
     return child_status
 end
 
+function RepeaterNode:reset()
+    DecoratorNode.reset(self)
+    self.current_count = 0
+end
+
 -- Timeout装饰器 - 超时控制
 ---@class TimeoutNode : DecoratorNode
 ---@field timeout_duration number 超时时间（秒）
@@ -531,6 +536,59 @@ function ConditionNode:execute()
     return BT.Status.FAILURE
 end
 
+-- Wait装饰器 - 等待指定时间后执行子节点
+---@class WaitNode : DecoratorNode
+---@field wait_duration number 等待时间（秒）
+---@field wait_start_time number? 开始等待时间
+---@field is_waiting boolean 是否在等待中
+local WaitNode = Class("WaitNode", DecoratorNode)
+
+function WaitNode:init(name, wait_duration)
+    DecoratorNode.init(self, name)
+    BT.Utils.set_node_property(self, "wait_duration", wait_duration or 1.0)
+    self.wait_start_time = nil
+    self.is_waiting = false
+end
+
+function WaitNode:execute()
+    if #self.children == 0 then
+        return BT.Status.FAILURE
+    end
+
+    -- 如果还没开始等待，开始计时
+    if not self.is_waiting then
+        self.wait_start_time = BT.Frameout.frame
+        self.is_waiting = true
+        return BT.Status.RUNNING
+    end
+
+    -- 检查等待时间是否已过
+    local current_time = BT.Frameout.frame
+    local wait_duration = BT.Utils.get_node_property(self, "wait_duration")
+    local elapsed_time = (current_time - self.wait_start_time) / 30 -- 转换为秒
+    
+    if elapsed_time < wait_duration then
+        return BT.Status.RUNNING
+    end
+
+    -- 等待结束，执行子节点
+    local child_status = self.children[1]:execute()
+    
+    -- 如果子节点完成（成功或失败），重置等待状态
+    if child_status ~= BT.Status.RUNNING then
+        self.is_waiting = false
+        self.wait_start_time = nil
+    end
+
+    return child_status
+end
+
+function WaitNode:reset()
+    DecoratorNode.reset(self)
+    self.is_waiting = false
+    self.wait_start_time = nil
+end
+
 
 -- 导出所有节点类
 BT.BaseNode = BaseNode
@@ -550,5 +608,6 @@ BT.UntilFailureNode = UntilFailureNode
 BT.SubtreeRefNode = SubtreeRefNode
 BT.ActionNode = ActionNode
 BT.ConditionNode = ConditionNode
+BT.WaitNode = WaitNode
 
 return BT

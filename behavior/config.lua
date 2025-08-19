@@ -49,13 +49,13 @@ function AIConfig.build_node(builder, config, subtrees)
         builder:repeater(config.name, config.count)
     elseif config.type == BT.NodeType.TIMEOUT then
         -- 支持黑板引用的duration配置
-        builder:timeout(config.name, config.duration)
+        builder:timeout(config.name, config.timeout_duration)
     elseif config.type == BT.NodeType.RETRY then
         -- 支持黑板引用的max_retries配置
         builder:retry(config.name, config.max_retries)
     elseif config.type == BT.NodeType.COOLDOWN then
         -- 支持黑板引用的duration配置
-        builder:cooldown(config.name, config.duration)
+        builder:cooldown(config.name, config.cooldown_duration)
     elseif config.type == BT.NodeType.ALWAYS_SUCCESS then
         builder:always_success(config.name)
     elseif config.type == BT.NodeType.ALWAYS_FAILURE then
@@ -64,6 +64,9 @@ function AIConfig.build_node(builder, config, subtrees)
         builder:until_success(config.name)
     elseif config.type == BT.NodeType.UNTIL_FAILURE then
         builder:until_failure(config.name)
+    elseif config.type == BT.NodeType.WAIT then
+        -- 支持黑板引用的wait_duration配置
+        builder:wait(config.name, config.wait_duration)
     elseif config.type == BT.NodeType.ACTION then
         builder:action(config.name, config.func, config.params)
         return
