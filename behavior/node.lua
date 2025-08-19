@@ -232,7 +232,7 @@ end
 function RepeaterNode:decorate(child_status)
     if child_status ~= BT.Status.RUNNING then
         self.current_count = self.current_count + 1
-        
+
         local repeat_count = BT.Utils.get_node_property(self, "repeat_count")
         if repeat_count > 0 and self.current_count >= repeat_count then
             self.current_count = 0
@@ -316,7 +316,7 @@ function RetryNode:decorate(child_status)
         return BT.Status.SUCCESS
     elseif child_status == BT.Status.FAILURE then
         self.current_retries = self.current_retries + 1
-        
+
         local max_retries = BT.Utils.get_node_property(self, "max_retries")
         if self.current_retries >= max_retries then
             self.current_retries = 0
@@ -467,12 +467,12 @@ function SubtreeRefNode:execute()
     if self.subtree_root then
         return self.subtree_root:execute()
     end
-    
+
     -- 如果没有子树，降级为普通装饰器执行子节点
     if #self.children > 0 then
         return self.children[1]:execute()
     end
-    
+
     return BT.Status.FAILURE
 end
 
@@ -566,21 +566,25 @@ function WaitNode:execute()
     local current_time = BT.Frameout.frame
     local wait_duration = BT.Utils.get_node_property(self, "wait_duration")
     local elapsed_time = (current_time - self.wait_start_time) / 30 -- 转换为秒
-    
+
     if elapsed_time < wait_duration then
         return BT.Status.RUNNING
     end
 
     -- 等待结束，执行子节点
-    local child_status = self.children[1]:execute()
-    
-    -- 如果子节点完成（成功或失败），重置等待状态
-    if child_status ~= BT.Status.RUNNING then
-        self.is_waiting = false
-        self.wait_start_time = nil
-    end
+    if self.children[1] then
+        local child_status = self.children[1]:execute()
 
-    return child_status
+        -- 如果子节点完成（成功或失败），重置等待状态
+        if child_status ~= BT.Status.RUNNING then
+            self.is_waiting = false
+            self.wait_start_time = nil
+        end
+
+        return child_status
+    else
+        return BT.Status.SUCCESS
+    end
 end
 
 function WaitNode:reset()
@@ -588,7 +592,6 @@ function WaitNode:reset()
     self.is_waiting = false
     self.wait_start_time = nil
 end
-
 
 -- 导出所有节点类
 BT.BaseNode = BaseNode

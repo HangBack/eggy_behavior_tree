@@ -196,7 +196,7 @@ class BehaviorTreeEditor {
                 this.selectedNode.timeoutDuration = newTimeoutDuration;
                 this.selectedNode.retryCount = newRetryCount;
                 this.selectedNode.cooldownDuration = newCooldownDuration;
-                this.selectedNode.waitDuration = oldWaitDuration;
+                this.selectedNode.waitDuration = newWaitDuration;
                 this.selectedNode.subtree = newSubtree;
             }
 
@@ -868,7 +868,8 @@ class BehaviorTreeEditor {
             'ACTION': '行为节点',
             'DECORATOR': '装饰节点',
             'BLACKBOARD': '黑板节点',
-            'SUBTREE': '子树节点'
+            'SUBTREE': '子树节点',
+            'WAIT': '等待节点',
         };
         return typeNames[type] || `${type}节点`;
     }
@@ -964,6 +965,10 @@ class BehaviorTreeEditor {
             if (node.decoratorType === 'SUBTREE_REF') {
                 // 引用子树类型：不需要子节点，但需要引用子树名称
                 if (!node.subtree || !node.subtree.trim()) {
+                    hasError = true;
+                }
+            } else if (node.decoratorType === 'WAIT') {
+                if (!node.waitDuration || !node.waitDuration.trim()) {
                     hasError = true;
                 }
             } else {
