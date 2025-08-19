@@ -4222,7 +4222,7 @@ class BehaviorTreeEditor {
             <div class="param-item" data-index="${index}">
                     <input type="text" class="param-name" value="${param.name || ''}" 
                            placeholder="键" oninput="bte.updateParameter(this, ${index}, 'name')">
-                    <input type="text" class="param-value" value="${param.value || ''}" 
+                    <input type="text" class="param-value" value='${param.value || ''}' 
                            placeholder="值" 
                            oninput="bte.updateParameter(this, ${index}, 'value')">
                     <button class="remove-param-btn" onclick="bte.removeParameter(${index})" title="删除参数">×</button>
