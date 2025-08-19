@@ -2319,7 +2319,7 @@ class BehaviorTreeEditor {
         }
 
         // 处理参数
-        if (JSON.stringify(node.params) !== '[]') {
+        if (node.params && (JSON.stringify(node.params) !== '[]')) {
             code += ',\n    params = {\n';
             node.params.forEach((param, index) => {
                 const paramName = param.name;
