@@ -3968,6 +3968,7 @@ class BehaviorTreeEditor {
         const trimmedValue = value.trim();
 
         // 如果是黑板引用，按黑板引用处理
+        input.classList.remove('blackboard-reference', 'blackboard-reference-invalid');
         if (this.isBlackboardReference(trimmedValue)) {
             const keyName = trimmedValue.substring(1);
             if (this.isValidBlackboardReference(keyName)) {
@@ -4004,6 +4005,7 @@ class BehaviorTreeEditor {
         const trimmedValue = value.trim();
 
         // 如果是黑板引用，按黑板引用处理
+        input.classList.remove('blackboard-reference', 'blackboard-reference-invalid');
         if (this.isBlackboardReference(trimmedValue)) {
             const keyName = trimmedValue.substring(1);
             if (this.isValidBlackboardReference(keyName)) {
@@ -4052,6 +4054,7 @@ class BehaviorTreeEditor {
         }
 
         // 优先检查黑板引用
+        input.classList.remove('blackboard-reference', 'blackboard-reference-invalid');
         if (this.isBlackboardReference(value)) {
             const keyName = value.substring(1); // 去掉@符号
             if (this.isValidBlackboardReference(keyName)) {
@@ -4252,7 +4255,7 @@ class BehaviorTreeEditor {
         }
 
         const trimmedValue = obj.value.trim();
-
+        obj.classList.remove('blackboard-reference', 'blackboard-reference-invalid');
         if (this.isBlackboardReference(trimmedValue) && (field !== "name")) {
             const keyName = trimmedValue.substring(1);
             if (this.isValidBlackboardReference(keyName)) {
