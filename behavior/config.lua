@@ -65,10 +65,10 @@ function AIConfig.build_node(builder, config, subtrees)
     elseif config.type == BT.NodeType.UNTIL_FAILURE then
         builder:until_failure(config.name)
     elseif config.type == BT.NodeType.ACTION then
-        builder:action(config.name, config.func)
+        builder:action(config.name, config.func, config.params)
         return
     elseif config.type == BT.NodeType.CONDITION then
-        builder:condition(config.name, config.func)
+        builder:condition(config.name, config.func, config.params)
         return
     elseif config.type == BT.NodeType.SUBTREE_REF then
         -- 处理子树引用装饰器节点

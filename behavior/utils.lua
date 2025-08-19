@@ -51,8 +51,8 @@ BT.ParallelPolicy = {
 -- 工具函数
 BT.Utils = {}
 
-BT.Conditions = {} ---@type table<string, fun(blackboard: Blackboard) : boolean>
-BT.Actions = {} ---@type table<string, fun(blackboard: Blackboard) : BT.Status>
+BT.Conditions = {} ---@type table<string, fun(blackboard: Blackboard, args: table?) : boolean>
+BT.Actions = {} ---@type table<string, fun(blackboard: Blackboard, args: table?) : BT.Status>
 
 -- 解析黑板引用数据
 ---@param data any 输入数据

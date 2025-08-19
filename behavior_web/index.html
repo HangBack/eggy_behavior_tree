@@ -140,8 +140,8 @@
         </div>
         
         <div class="panel right-panel" id="property-panel">
-            <h2 class="panel-title">节点属性</h2>
-            <div id="property-form">
+            <h2 class="panel-title" id="panel-property" style="display: none;">节点属性</h2>
+            <div id="property-form" style="display: none;">
                 <div class="form-group">
                     <label for="node-type">节点类型</label>
                     <input type="text" id="node-type" disabled>
@@ -184,10 +184,26 @@
                         </div>
                     </div>
                 </div>
-                <div class="form-group" id="function-group">
-                    <label for="node-function">行为函数</label>
-                    <input type="text" id="node-function" placeholder="输入函数名称">
-                </div>
+                        <div class="form-group" id="function-group">
+                            <label for="node-function">函数名:</label>
+                            <input type="text" id="node-function" placeholder="输入函数名">
+                        </div>
+
+                        <div class="form-group" id="node-params-group" style="display: none;">
+                            <label>函数参数:</label>
+                            <div class="params-container">
+                                <div class="params-header">
+                                    <span>参数配置</span>
+                                    <button type="button" class="add-param-btn" id="add-param-btn" title="添加参数" onclick="bte.addParameter()">+</button>
+                                </div>
+                                <div class="params-list" id="params-list">
+                                    <!-- 参数列表动态生成 -->
+                                    <div class="no-params-hint" id="no-params-hint">
+                                        暂无参数，点击上方 + 按钮添加参数
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                 <div class="form-group" id="policy-group">
                     <label for="node-policy">并行策略</label>
                     <select id="node-policy">

@@ -1973,6 +1973,240 @@ body {
     background: rgba(96, 104, 120, 0.8);
 }
 
+/* 参数配置样式 */
+.params-container {
+    width: 100%;
+    max-width: 100%;
+    background: rgba(20, 25, 35, 0.3);
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.params-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    background: rgba(74, 159, 245, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.params-header span {
+    font-weight: 600;
+    color: #4a9ff5;
+    font-size: 0.9rem;
+}
+
+.add-param-btn {
+    background: rgba(86, 204, 157, 0.8);
+    border: 1px solid rgba(86, 204, 157, 1);
+    color: white;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: bold;
+    transition: all 0.2s ease;
+    padding: 0;
+    user-select: none;
+}
+
+.add-param-btn:hover {
+    background: rgba(86, 204, 157, 1);
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(86, 204, 157, 0.4);
+}
+
+.add-param-btn:active {
+    transform: scale(0.95);
+}
+
+.params-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.no-params-hint {
+    text-align: center;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.85rem;
+    padding: 20px 10px;
+    font-style: italic;
+}
+
+.param-item {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.05);
+    margin: 6px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.param-item input {
+    padding: 5px;
+}
+
+.param-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.param-name-input, .param-value-input {
+    background: rgba(30, 35, 48, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    color: #fff;
+    font-size: 0.85rem;
+    outline: none;
+    transition: all 0.2s ease;
+    user-select: text;
+    padding: 5px;
+    box-sizing: border-box;
+}
+
+.param-name-input:focus, .param-value-input:focus {
+    background: rgba(30, 35, 48, 0.8);
+    border-color: rgba(74, 159, 245, 0.6);
+    box-shadow: 0 0 0 2px rgba(74, 159, 245, 0.2);
+}
+
+.param-name-input::placeholder, .param-value-input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 0.8rem;
+}
+
+/* 参数名称重复错误样式 */
+.param-name-input.error {
+    border-color: #e74c3c !important;
+    background-color: rgba(231, 76, 60, 0.15) !important;
+    box-shadow: 0 0 0 2px rgba(231, 76, 60, 0.3) !important;
+}
+
+.param-name-input.duplicate-name {
+    animation: shake 0.5s;
+}
+
+.remove-param-btn {
+    background: rgba(231, 76, 60, 0.8);
+    border: 1px solid rgba(231, 76, 60, 1);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: bold;
+    transition: all 0.2s ease;
+    width: 28px;  /* 固定宽度 */
+    height: 28px; /* 固定高度，与输入框高度匹配 */
+    border-radius: 4px;
+    padding: 0;
+    flex-shrink: 0;
+    line-height: 1;
+    text-align: center;
+}
+
+.remove-param-btn:hover {
+    background: rgba(231, 76, 60, 1);
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(231, 76, 60, 0.4);
+}
+
+.remove-param-btn:active {
+    transform: scale(0.9);
+}
+
+/* 参数类型指示器样式 */
+.param-type-indicator {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.param-type-indicator.string {
+    background: rgba(74, 159, 245, 0.2);
+    color: #4a9ff5;
+    border: 1px solid rgba(74, 159, 245, 0.4);
+}
+
+.param-type-indicator.number {
+    background: rgba(86, 204, 157, 0.2);
+    color: #56cc9d;
+    border: 1px solid rgba(86, 204, 157, 0.4);
+}
+
+.param-type-indicator.boolean {
+    background: rgba(255, 159, 74, 0.2);
+    color: #ff9f4a;
+    border: 1px solid rgba(255, 159, 74, 0.4);
+}
+
+/* 参数列表滚动条样式 */
+.params-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.params-list::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+}
+
+.params-list::-webkit-scrollbar-thumb {
+    background: rgba(74, 159, 245, 0.6);
+    border-radius: 2px;
+}
+
+.params-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(74, 159, 245, 0.8);
+}
+
+/* 参数项拖拽排序样式 */
+.param-item.dragging {
+    opacity: 0.7;
+    transform: rotate(2deg);
+    z-index: 1000;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.param-item.drag-over {
+    border-color: rgba(255, 193, 7, 0.8);
+    background: rgba(255, 193, 7, 0.1);
+    transform: translateY(-2px);
+}
+
+/* 参数统计信息样式 */
+.params-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 12px;
+    background: rgba(86, 204, 157, 0.1);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 0.8rem;
+    color: #56cc9d;
+}
+
+.params-count {
+    font-weight: 600;
+}
+
+.params-types {
+    display: flex;
+    gap: 8px;
+    font-size: 0.75rem;
+}
+
 /* 确保黑板节点内容不影响拖动 */
 .node[data-type="BLACKBOARD"] .node-content {
     pointer-events: none;

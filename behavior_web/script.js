@@ -647,7 +647,7 @@ class BehaviorTreeEditor {
         path.setAttribute('marker-end', `url(#arrowhead-dashed-${tempConnection?.toPoint ?? "down"})`);
 
         console.log(`url(#arrowhead-dashed-${tempConnection?.toPoint ?? "down"})`);
-        
+
 
         this.connectionsSvg.appendChild(path);
     }
@@ -884,6 +884,11 @@ class BehaviorTreeEditor {
             policy: '',
             comment: ''
         };
+
+        // 为条件节点和行为节点初始化参数数组
+        if (['CONDITION', 'ACTION'].includes(type)) {
+            node.params = [];
+        }
 
         const nodeElement = this.createNodeElement(node);
         this.canvas.appendChild(nodeElement);
@@ -1909,9 +1914,17 @@ class BehaviorTreeEditor {
     selectNode(node) {
         this.selectedNode = node;
         if (node) {
+            const panelTitle = document.getElementById('panel-property');
+            panelTitle.style.display = 'block';
+            const panel = document.getElementById('property-form');
+            panel.style.display = 'block';
             this.highlightNode(node.id, 'selected');
             this.updatePropertyPanel();
         } else {
+            const panelTitle = document.getElementById('panel-property');
+            panelTitle.style.display = 'none';
+            const panel = document.getElementById('property-form');
+            panel.style.display = 'none';
             document.querySelectorAll('.node').forEach(n => {
                 n.classList.remove('selected');
             });
@@ -1958,6 +1971,13 @@ class BehaviorTreeEditor {
         // 函数组显示逻辑：条件节点、行为节点需要显示
         const needsFunctionGroup = ['CONDITION', 'ACTION'].includes(this.selectedNode.type);
         functionGroup.style.display = needsFunctionGroup ? 'block' : 'none';
+
+        // 参数组显示逻辑：条件节点、行为节点需要显示参数配置
+        const paramsGroup = document.getElementById('node-params-group');
+        paramsGroup.style.display = needsFunctionGroup ? 'block' : 'none';
+
+        // 初始化参数界面
+        this.initializeParamsUI();
 
         policyGroup.style.display = this.selectedNode.type === 'PARALLEL' ? 'block' : 'none';
         decoratorTypeGroup.style.display = this.selectedNode.type === 'DECORATOR' ? 'block' : 'none';
@@ -2295,6 +2315,19 @@ class BehaviorTreeEditor {
             } else {
                 code += `,\n    func = ${this.formatFunctionOutput(node.func)}`;
             }
+        }
+
+        // 处理参数
+        if (node.params) {
+            code += ',\n    params = {\n';
+            node.params.forEach((param, index) => {
+                const paramName = param.name;
+                const paramValue = this.formatBlackboardReference(param.value, true);
+                if (paramName)
+                    code += `        ["${paramName}"] = ${paramValue || "nil"},\n`;
+            })
+            code = code.at(-2) === ',' && code.slice(0, -2) + "\n"; // 移除最后一个逗号
+            code += '    }';
         }
 
         // 处理策略，支持黑板引用
@@ -4130,6 +4163,143 @@ class BehaviorTreeEditor {
 
         // 默认作为字符串处理
         return `"${value.replace(/"/g, '\\"')}"`;
+    }
+
+    // ===============================
+    // 参数管理相关方法
+    // ===============================
+
+    // 初始化参数界面
+    initializeParamsUI() {
+        if (!this.selectedNode || !['CONDITION', 'ACTION'].includes(this.selectedNode.type)) {
+            return;
+        }
+
+        // 确保节点有参数数组
+        if (!this.selectedNode.params) {
+            this.selectedNode.params = [];
+        }
+
+        this.renderParamsList();
+    }
+
+    // 渲染参数列表
+    renderParamsList() {
+        const paramsContainer = document.getElementById('params-list');
+        if (!paramsContainer || !this.selectedNode) return;
+
+        const params = this.selectedNode.params || [];
+
+        if (params.length === 0) {
+            paramsContainer.innerHTML = `
+            <div class="params-list" id="params-list">
+                <!-- 参数列表动态生成 -->
+                <div class="no-params-hint" id="no-params-hint">
+                    暂无参数，点击上方 + 按钮添加参数
+                </div>
+            </div>
+        `;
+        } else {
+            paramsContainer.innerHTML = `
+                ${params.map((param, index) => this.renderParameterItem(param, index)).join('')}
+            `;
+        }
+    }
+
+    // 渲染单个参数项
+    renderParameterItem(param, index) {
+        return `
+            <div class="param-item" data-index="${index}">
+                    <input type="text" class="param-name" value="${param.name || ''}" 
+                           placeholder="键" oninput="bte.updateParameter(this, ${index}, 'name')">
+                    <input type="text" class="param-value" value="${param.value || ''}" 
+                           placeholder="值" 
+                           oninput="bte.updateParameter(this, ${index}, 'value')">
+                    <button class="remove-param-btn" onclick="bte.removeParameter(${index})" title="删除参数">×</button>
+            </div>
+        `;
+    }
+
+    // 添加参数
+    addParameter() {
+        if (!this.selectedNode || !['CONDITION', 'ACTION'].includes(this.selectedNode.type)) {
+            return;
+        }
+
+        if (!this.selectedNode.params) {
+            this.selectedNode.params = [];
+        }
+
+        // 添加新参数
+        this.selectedNode.params.push({
+            name: '',
+            value: '',
+        });
+
+        // 重新渲染参数列表
+        this.renderParamsList();
+
+        // 保存更改
+        this.saveToStorage();
+        this.saveHistoryState('添加参数');
+        this.showNotification('已添加新参数');
+    }
+
+    // 更新参数
+    updateParameter(obj, index, field) {
+        if (!this.selectedNode || !this.selectedNode.params || index < 0 || index >= this.selectedNode.params.length) {
+            return;
+        }
+
+        const trimmedValue = obj.value.trim();
+
+        if (this.isBlackboardReference(trimmedValue) && field !== "name") {
+            const keyName = trimmedValue.substring(1);
+            if (this.isValidBlackboardReference(keyName)) {
+                obj.classList.add('blackboard-reference');
+                obj.title = `黑板引用: ${keyName}`;
+            } else {
+                obj.classList.add('blackboard-reference-invalid');
+                obj.title = `无效的黑板引用: ${keyName} (键名不存在)`;
+            }
+        } else {
+            obj.classList.remove('blackboard-reference', 'blackboard-reference-invalid');
+        }
+
+        const oldValue = this.selectedNode.params[index][field];
+        this.selectedNode.params[index][field] = obj.value;
+
+        // 如果类型改变，重新渲染当前参数项
+        if (field === 'type' && oldValue !== obj.value) {
+            this.renderParamsList();
+        }
+
+        // 保存更改
+        this.saveToStorage();
+
+        // 延迟保存历史状态，避免频繁输入时产生过多历史记录
+        clearTimeout(this.paramUpdateTimeout);
+        this.paramUpdateTimeout = setTimeout(() => {
+            this.saveHistoryState('修改参数');
+        }, 1000);
+    }
+
+    // 删除参数
+    removeParameter(index) {
+        if (!this.selectedNode || !this.selectedNode.params || index < 0 || index >= this.selectedNode.params.length) {
+            return;
+        }
+
+        // 删除参数
+        this.selectedNode.params.splice(index, 1);
+
+        // 重新渲染参数列表
+        this.renderParamsList();
+
+        // 保存更改
+        this.saveToStorage();
+        this.saveHistoryState('删除参数');
+        this.showNotification('参数已删除');
     }
 }
 

@@ -164,14 +164,14 @@ function TreeBuilder:until_failure(name)
     return self
 end
 
-function TreeBuilder:action(name, func)
-    local node = BT.ActionNode:new(name, func)
+function TreeBuilder:action(name, func, params)
+    local node = BT.ActionNode:new(name, func, params)
     self:add_leaf(node)
     return self
 end
 
-function TreeBuilder:condition(name, func)
-    local node = BT.ConditionNode:new(name, func)
+function TreeBuilder:condition(name, func, params)
+    local node = BT.ConditionNode:new(name, func, params)
     self:add_leaf(node)
     return self
 end

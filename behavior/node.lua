@@ -484,42 +484,48 @@ end
 
 ---@class ActionNodeConfig : BaseNodeConfig
 ---@field type "ACTION"
----@field func fun(blackboard: Blackboard): BT.Status 行为函数
+---@field func fun(blackboard: Blackboard, args: table?): BT.Status 行为函数
+---@field params table? 参数表
 
 -- Action节点 - 行为节点
 ---@class ActionNode : BaseNode
 ---@field action_func function 行为函数
+---@field params table? 参数表
 local ActionNode = Class("ActionNode", BaseNode)
 
-function ActionNode:init(name, action_func)
+function ActionNode:init(name, action_func, params)
     BaseNode.init(self, name)
     self.action_func = action_func
+    self.params = params
 end
 
 function ActionNode:execute()
     if self.action_func then
-        return self.action_func(self.blackboard) or BT.Status.FAILURE
+        return self.action_func(self.blackboard, self.params) or BT.Status.FAILURE
     end
     return BT.Status.FAILURE
 end
 
 ---@class ConditionNodeConfig : BaseNodeConfig
 ---@field type "CONDITION"
----@field func fun(blackboard: Blackboard): boolean 行为函数
+---@field func fun(blackboard: Blackboard, args: table?): boolean 行为函数
+---@field params table? 参数表
 
 -- Condition节点 - 条件节点
 ---@class ConditionNode : BaseNode
 ---@field condition_func function 条件函数
+---@field params table? 参数表
 local ConditionNode = Class("ConditionNode", BaseNode)
 
-function ConditionNode:init(name, condition_func)
+function ConditionNode:init(name, condition_func, params)
     BaseNode.init(self, name)
     self.condition_func = condition_func
+    self.params = params
 end
 
 function ConditionNode:execute()
     if self.condition_func then
-        local result = self.condition_func(self.blackboard)
+        local result = self.condition_func(self.blackboard, self.params)
         return result and BT.Status.SUCCESS or BT.Status.FAILURE
     end
     return BT.Status.FAILURE
