@@ -559,6 +559,7 @@ class BehaviorTreeEditor {
 
         let endX = canvasX;
         let endY = canvasY;
+        let toPoint = 'left'; // 默认连接点
 
         if (hoveredNode && hoveredNode.id !== this.connectingNode.id) {
             // 使用当前高亮的连接点作为终点
@@ -572,6 +573,7 @@ class BehaviorTreeEditor {
                 );
                 endX = endPoint.x;
                 endY = endPoint.y;
+                toPoint = this.highlightedConnectionPoint.side;
             } else {
                 // 连接到悬停节点的最优连接点
                 const targetPhysicalX = hoveredNode.x + 2000;
@@ -586,39 +588,66 @@ class BehaviorTreeEditor {
                 );
                 endX = optimalPoint.x;
                 endY = optimalPoint.y;
+
+                // 计算最优连接点方向
+                toPoint = this.findOptimalConnectionSide(
+                    { x: targetPhysicalX, y: targetPhysicalY, id: hoveredNode.id },
+                    { x: sourcePoint.x, y: sourcePoint.y }
+                );
             }
         }
 
-        this.drawTempConnection(sourcePoint.x, sourcePoint.y, endX, endY);
+        // 创建临时连接对象以传递连接点信息
+        const tempConnection = {
+            fromPoint: this.selectedFromPoint || 'right',
+            toPoint: toPoint
+        };
+
+        this.drawTempConnection(sourcePoint.x, sourcePoint.y, endX, endY, tempConnection);
     }
 
-    drawTempConnection(startX, startY, endX, endY) {
+    drawTempConnection(startX, startY, endX, endY, tempConnection = null) {
         // 移除之前的临时连线
         const existingTemp = this.connectionsSvg.querySelector('.temp-connection');
         if (existingTemp) {
             existingTemp.remove();
         }
 
-        // 使用与最终连接相同的曲线算法
-        let controlPoint1, controlPoint2;
-
-        if (Math.abs(startX - endX) > Math.abs(startY - endY)) {
-            // 水平连接
-            const offsetX = Math.abs(startX - endX) * 0.4;
-            controlPoint1 = { x: startX + (startX < endX ? offsetX : -offsetX), y: startY };
-            controlPoint2 = { x: endX + (startX < endX ? -offsetX : offsetX), y: endY };
-        } else {
-            // 垂直连接
-            const offsetY = Math.abs(startY - endY) * 0.4;
-            controlPoint1 = { x: startX, y: startY + (startY < endY ? offsetY : -offsetY) };
-            controlPoint2 = { x: endX, y: endY + (startY < endY ? -offsetY : offsetY) };
-        }
+        // 获取连线样式设置
+        const connectionStyle = this.getConnectionStyle();
 
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        const d = `M ${startX} ${startY} C ${controlPoint1.x} ${controlPoint1.y}, ${controlPoint2.x} ${controlPoint2.y}, ${endX} ${endY}`;
+        let d = '';
+
+        if (connectionStyle === 'straight') {
+            // 折线样式 - 有转折点的直线连接
+            d = this.createPolylinePath(startX, startY, endX, endY, tempConnection || { fromPoint: 'right', toPoint: 'left' });
+        } else {
+            // 贝塞尔曲线样式（默认）
+            let controlPoint1, controlPoint2;
+
+            if (Math.abs(startX - endX) > Math.abs(startY - endY)) {
+                // 水平连接
+                const offsetX = Math.abs(startX - endX) * 0.4;
+                controlPoint1 = { x: startX + (startX < endX ? offsetX : -offsetX), y: startY };
+                controlPoint2 = { x: endX + (startX < endX ? -offsetX : offsetX), y: endY };
+            } else {
+                // 垂直连接
+                const offsetY = Math.abs(startY - endY) * 0.4;
+                controlPoint1 = { x: startX, y: startY + (startY < endY ? offsetY : -offsetY) };
+                controlPoint2 = { x: endX, y: endY + (startY < endY ? -offsetY : offsetY) };
+            }
+
+            d = `M ${startX} ${startY} C ${controlPoint1.x} ${controlPoint1.y}, ${controlPoint2.x} ${controlPoint2.y}, ${endX} ${endY}`;
+        }
 
         path.setAttribute('d', d);
         path.setAttribute('class', 'temp-connection');
+        // 为临时连接添加虚线箭头
+        path.setAttribute('marker-end', `url(#arrowhead-dashed-${tempConnection?.toPoint ?? "down"})`);
+
+        console.log(`url(#arrowhead-dashed-${tempConnection?.toPoint ?? "down"})`);
+        
 
         this.connectionsSvg.appendChild(path);
     }
@@ -949,7 +978,7 @@ class BehaviorTreeEditor {
     validateSubtreeNames() {
         // 收集所有子树节点的名称
         const subtreeNames = {};
-        
+
         // 遍历所有子树节点，收集名称并检查重复
         this.nodes.forEach(node => {
             if (node.type === 'SUBTREE') {
@@ -996,8 +1025,8 @@ class BehaviorTreeEditor {
             // 引用子树装饰器显示引用的子树名称
             const subtreeRef = node.subtree || '未设置';
             content = `<p>引用子树: ${subtreeRef}</p>`;
-        } else if (['SEQUENCE', 'FALLBACK', 'PARALLEL'].includes(node.type) || 
-                   (node.type === 'DECORATOR' && node.decoratorType !== 'SUBTREE_REF')) {
+        } else if (['SEQUENCE', 'FALLBACK', 'PARALLEL'].includes(node.type) ||
+            (node.type === 'DECORATOR' && node.decoratorType !== 'SUBTREE_REF')) {
             // 其他需要显示子节点数量的节点类型
             const childCount = this.getChildCount(node.id);
             content = `<p>子节点: ${childCount}</p>`;
@@ -1439,6 +1468,11 @@ class BehaviorTreeEditor {
             return false;
         }
 
+        // 子树节点不应该能拥有父节点
+        if (toNode.type === 'SUBTREE') {
+            return false;
+        }
+
         // 黑板节点连接限制：只能连接到根节点（没有父节点的节点，或只有黑板节点作为父节点的节点）
         if (fromNode.type === 'BLACKBOARD') {
             // 检查目标节点是否为根节点
@@ -1499,6 +1533,10 @@ class BehaviorTreeEditor {
         // 清除所有连线，保留临时连线
         const tempConnection = this.connectionsSvg.querySelector('.temp-connection');
         this.connectionsSvg.innerHTML = '';
+
+        // 添加箭头标记定义
+        this.addArrowMarkers();
+
         if (tempConnection) {
             this.connectionsSvg.appendChild(tempConnection);
         }
@@ -1512,6 +1550,60 @@ class BehaviorTreeEditor {
             const path = this.createConnectionPath(fromNode, toNode, conn);
             this.connectionsSvg.appendChild(path);
         });
+    }
+
+    // 添加箭头标记定义
+    addArrowMarkers() {
+        // 检查是否已存在defs元素
+        let defs = this.connectionsSvg.querySelector('defs');
+        if (!defs) {
+            defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+            this.connectionsSvg.appendChild(defs);
+        }
+
+        // 实线箭头标记
+        const directions = ['top', 'bottom', 'left', 'right'];
+        const angles = { bottom: 270, top: 90, right: 180, left: 0 };
+        defs.innerHTML = '';
+        for (let index = 0; index < directions.length; index++) {
+            const solidArrowMarker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+            solidArrowMarker.setAttribute('id', `arrowhead-solid-${directions[index]}`);
+            solidArrowMarker.setAttribute('markerWidth', '12');
+            solidArrowMarker.setAttribute('markerHeight', '9');
+            solidArrowMarker.setAttribute('refX', '11');
+            solidArrowMarker.setAttribute('refY', '4.5');
+            solidArrowMarker.setAttribute('orient', angles[directions[index]]); // 自动根据路径方向调整
+            solidArrowMarker.setAttribute('markerUnits', 'userSpaceOnUse');
+            solidArrowMarker.setAttribute('viewBox', '0 0 12 9');
+
+            const solidArrowPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            solidArrowPath.setAttribute('d', 'M 0 0 L 12 4.5 L 0 9 Z');
+            solidArrowPath.setAttribute('fill', '#56cc9d');
+            solidArrowPath.setAttribute('stroke', 'none');
+            solidArrowMarker.appendChild(solidArrowPath);
+
+            // 虚线箭头标记
+            const dashedArrowMarker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+            dashedArrowMarker.setAttribute('id', `arrowhead-dashed-${directions[index]}`);
+            dashedArrowMarker.setAttribute('markerWidth', '12');
+            dashedArrowMarker.setAttribute('markerHeight', '9');
+            dashedArrowMarker.setAttribute('refX', '11');
+            dashedArrowMarker.setAttribute('refY', '4.5');
+            dashedArrowMarker.setAttribute('orient', angles[directions[index]]); // 自动根据路径方向调整
+            dashedArrowMarker.setAttribute('markerUnits', 'userSpaceOnUse');
+            dashedArrowMarker.setAttribute('viewBox', '0 0 12 9');
+
+            const dashedArrowPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            dashedArrowPath.setAttribute('d', 'M 0 0 L 12 4.5 L 0 9 Z');
+            dashedArrowPath.setAttribute('fill', '#56cc9d');
+            dashedArrowPath.setAttribute('stroke', 'none');
+            dashedArrowPath.setAttribute('opacity', '0.8');
+            dashedArrowMarker.appendChild(dashedArrowPath);
+
+            // 清空并重新添加标记
+            defs.appendChild(solidArrowMarker);
+            defs.appendChild(dashedArrowMarker);
+        }
     }
 
     createConnectionPath(fromNode, toNode, connection) {
@@ -1555,26 +1647,82 @@ class BehaviorTreeEditor {
         const endX = toPoint.x;
         const endY = toPoint.y;
 
-        // 根据连接方向调整曲线控制点
-        let controlPoint1, controlPoint2;
-
-        if (Math.abs(startX - endX) > Math.abs(startY - endY)) {
-            // 水平连接
-            const offsetX = Math.abs(startX - endX) * 0.4;
-            controlPoint1 = { x: startX + (startX < endX ? offsetX : -offsetX), y: startY };
-            controlPoint2 = { x: endX + (startX < endX ? -offsetX : offsetX), y: endY };
-        } else {
-            // 垂直连接
-            const offsetY = Math.abs(startY - endY) * 0.4;
-            controlPoint1 = { x: startX, y: startY + (startY < endY ? offsetY : -offsetY) };
-            controlPoint2 = { x: endX, y: endY + (startY < endY ? -offsetY : offsetY) };
-        }
+        // 获取连线样式设置
+        const connectionStyle = this.getConnectionStyle();
 
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        const d = `M ${startX} ${startY} C ${controlPoint1.x} ${controlPoint1.y}, ${controlPoint2.x} ${controlPoint2.y}, ${endX} ${endY}`;
+        let d = '';
+
+        if (connectionStyle === 'straight') {
+            // 折线样式 - 有转折点的直线连接
+            d = this.createPolylinePath(startX, startY, endX, endY, connection);
+        } else {
+            // 贝塞尔曲线样式（默认）
+            let controlPoint1, controlPoint2;
+
+            if (Math.abs(startX - endX) > Math.abs(startY - endY)) {
+                // 水平连接
+                const offsetX = Math.abs(startX - endX) * 0.4;
+                controlPoint1 = { x: startX + (startX < endX ? offsetX : -offsetX), y: startY };
+                controlPoint2 = { x: endX + (startX < endX ? -offsetX : offsetX), y: endY };
+            } else {
+                // 垂直连接
+                const offsetY = Math.abs(startY - endY) * 0.4;
+                controlPoint1 = { x: startX, y: startY + (startY < endY ? offsetY : -offsetY) };
+                controlPoint2 = { x: endX, y: endY + (startY < endY ? -offsetY : offsetY) };
+            }
+
+            d = `M ${startX} ${startY} C ${controlPoint1.x} ${controlPoint1.y}, ${controlPoint2.x} ${controlPoint2.y}, ${endX} ${endY}`;
+        }
 
         path.setAttribute('d', d);
         path.setAttribute('class', 'connection');
+        // 添加箭头标记
+        path.setAttribute('marker-end', `url(#arrowhead-solid-${connection.toPoint})`);
+
+        return path;
+    }
+
+    // 创建折线路径（水平-垂直-水平或垂直-水平-垂直）
+    createPolylinePath(startX, startY, endX, endY, connection) {
+        const dx = endX - startX;
+        const dy = endY - startY;
+
+        // 根据起始和结束连接点确定折线路径
+        const fromPoint = connection.fromPoint || 'right';
+        const toPoint = connection.toPoint || 'left';
+
+        let path = `M ${startX} ${startY}`;
+
+        // 计算中间转折点
+        if (fromPoint === 'right' && toPoint === 'left') {
+            // 右到左：水平-垂直-水平
+            const midX = startX + Math.abs(dx) * 0.5;
+            path += ` L ${midX} ${startY} L ${midX} ${endY} L ${endX} ${endY}`;
+        } else if (fromPoint === 'left' && toPoint === 'right') {
+            // 左到右：水平-垂直-水平
+            const midX = startX - Math.abs(dx) * 0.5;
+            path += ` L ${midX} ${startY} L ${midX} ${endY} L ${endX} ${endY}`;
+        } else if (fromPoint === 'bottom' && toPoint === 'top') {
+            // 下到上：垂直-水平-垂直
+            const midY = startY + Math.abs(dy) * 0.5;
+            path += ` L ${startX} ${midY} L ${endX} ${midY} L ${endX} ${endY}`;
+        } else if (fromPoint === 'top' && toPoint === 'bottom') {
+            // 上到下：垂直-水平-垂直
+            const midY = startY - Math.abs(dy) * 0.5;
+            path += ` L ${startX} ${midY} L ${endX} ${midY} L ${endX} ${endY}`;
+        } else {
+            // 其他情况的智能处理
+            if (Math.abs(dx) > Math.abs(dy)) {
+                // 水平距离较大，优先水平连接
+                const midX = startX + dx * 0.5;
+                path += ` L ${midX} ${startY} L ${midX} ${endY} L ${endX} ${endY}`;
+            } else {
+                // 垂直距离较大，优先垂直连接
+                const midY = startY + dy * 0.5;
+                path += ` L ${startX} ${midY} L ${endX} ${midY} L ${endX} ${endY}`;
+            }
+        }
 
         return path;
     }
@@ -2083,7 +2231,7 @@ class BehaviorTreeEditor {
 
         // 生成主树代码和子树代码
         const { mainTreeCode, subtreesCode } = this.generateLuaCodeWithSubtrees(actualRoot);
-        
+
         let luaCode;
         if (subtreesCode.length > 0) {
             // 如果有子树，输出包含子树的格式
@@ -2100,10 +2248,10 @@ class BehaviorTreeEditor {
     generateLuaCodeWithSubtrees(rootNode) {
         // 收集所有子树节点
         const subtreeNodes = this.nodes.filter(node => node.type === 'SUBTREE');
-        
+
         // 生成主树代码
         const mainTreeCode = this.generateLuaCodeForTree(rootNode, subtreeNodes);
-        
+
         // 生成子树代码
         const subtreesCode = [];
         subtreeNodes.forEach(subtreeNode => {
@@ -2119,12 +2267,12 @@ class BehaviorTreeEditor {
                         .split('\n')
                         .map(line => '        ' + line)
                         .join('\n');
-                    
+
                     subtreesCode.push(`        ["${subtreeNode.name}"] = ${subtreeConfigCode}`);
                 }
             }
         });
-        
+
         return {
             mainTreeCode,
             subtreesCode
@@ -2381,10 +2529,14 @@ class BehaviorTreeEditor {
     openSettings() {
         const modal = document.getElementById('settings-modal');
         const prefixInput = document.getElementById('function-prefix');
+        const connectionStyleSelect = document.getElementById('connection-style');
 
         // 载入当前设置
         const currentPrefix = localStorage.getItem('functionPrefix') || '';
+        const currentConnectionStyle = localStorage.getItem('connectionStyle') || 'curved';
+
         prefixInput.value = currentPrefix;
+        connectionStyleSelect.value = currentConnectionStyle;
 
         modal.classList.add('show');
 
@@ -2399,7 +2551,10 @@ class BehaviorTreeEditor {
 
     saveSettings() {
         const prefixInput = document.getElementById('function-prefix');
+        const connectionStyleSelect = document.getElementById('connection-style');
+
         const newPrefix = prefixInput.value.trim();
+        const newConnectionStyle = connectionStyleSelect.value;
 
         // 保存到localStorage
         if (newPrefix) {
@@ -2408,13 +2563,29 @@ class BehaviorTreeEditor {
             localStorage.removeItem('functionPrefix');
         }
 
+        localStorage.setItem('connectionStyle', newConnectionStyle);
+
         this.closeSettings();
         this.showNotification('设置已保存');
+
+        // 如果连线样式发生变化，重新绘制连线
+        const oldStyle = this.connectionStyle || 'curved';
+        this.connectionStyle = newConnectionStyle;
+        if (oldStyle !== newConnectionStyle) {
+            this.drawConnections();
+        }
 
         // 如果有选中的节点，更新显示
         if (this.selectedNode) {
             this.updateNodeDisplay();
         }
+    }
+
+    getConnectionStyle() {
+        if (!this.connectionStyle) {
+            this.connectionStyle = localStorage.getItem('connectionStyle') || 'curved';
+        }
+        return this.connectionStyle;
     }
 
     getFunctionPrefix() {
