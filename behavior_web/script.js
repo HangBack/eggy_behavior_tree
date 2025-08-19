@@ -2304,7 +2304,8 @@ class BehaviorTreeEditor {
         if (node.type === 'BLACKBOARD') {
             return '';
         }
-
+        console.log(node.type);
+        
         let code = `return {\n    type = BT.NodeType.${node.decoratorType ?? node.type},\n    name = "${node.name}"`;
 
         // 处理函数名，支持黑板引用
@@ -2318,7 +2319,7 @@ class BehaviorTreeEditor {
         }
 
         // 处理参数
-        if (node.params) {
+        if (JSON.stringify(node.params) !== '[]') {
             code += ',\n    params = {\n';
             node.params.forEach((param, index) => {
                 const paramName = param.name;
@@ -2326,7 +2327,7 @@ class BehaviorTreeEditor {
                 if (paramName)
                     code += `        ["${paramName}"] = ${paramValue || "nil"},\n`;
             })
-            code = code.at(-2) === ',' && code.slice(0, -2) + "\n"; // 移除最后一个逗号
+            code = code.at(-2) === ',' ? code.slice(0, -2) + "\n" : code; // 移除最后一个逗号
             code += '    }';
         }
 
