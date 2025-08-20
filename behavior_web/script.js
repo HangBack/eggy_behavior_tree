@@ -699,13 +699,39 @@ class BehaviorTreeEditor {
         e.stopPropagation();
         this.draggingNode = node;
 
+        // 检查是否按住了Ctrl键
+        const isCtrlPressed = e.ctrlKey;
+        
+        // 如果按住Ctrl键，收集所有子节点和它们的相对位置
+        this.draggingNodeGroup = [node]; // 至少包含主节点
+        this.nodeOffsets = {}; // 存储每个节点相对于主节点的偏移量
+        
+        if (isCtrlPressed) {
+            this.draggingNodeGroup = this.getAllDescendants(node);
+            // 计算每个节点相对于主节点的偏移量
+            this.draggingNodeGroup.forEach(childNode => {
+                this.nodeOffsets[childNode.id] = {
+                    x: childNode.x - node.x,
+                    y: childNode.y - node.y
+                };
+            });
+        } else {
+            // 不按Ctrl键时，只移动主节点
+            this.nodeOffsets[node.id] = { x: 0, y: 0 };
+        }
+
         const rect = this.canvasContainer.getBoundingClientRect();
         // 计算鼠标在节点内的相对偏移（基于画布物理坐标）
         this.dragOffsetX = (e.clientX - rect.left - this.offsetX) / this.scale - (node.x + 2000);
         this.dragOffsetY = (e.clientY - rect.top - this.offsetY) / this.scale - (node.y + 2000);
 
-        const nodeElement = document.getElementById(`node-${node.id}`);
-        nodeElement.classList.add('dragging');
+        // 为所有拖动的节点添加拖动样式
+        this.draggingNodeGroup.forEach(dragNode => {
+            const nodeElement = document.getElementById(`node-${dragNode.id}`);
+            if (nodeElement) {
+                nodeElement.classList.add('dragging');
+            }
+        });
 
         // ⭐ 显示垃圾桶删除区域
         this.showTrashZone();
@@ -719,7 +745,7 @@ class BehaviorTreeEditor {
         const mouseCanvasPhysicalX = (e.clientX - rect.left - this.offsetX) / this.scale;
         const mouseCanvasPhysicalY = (e.clientY - rect.top - this.offsetY) / this.scale;
 
-        // 计算节点的新画布物理位置
+        // 计算主节点的新画布物理位置
         const newCanvasPhysicalX = mouseCanvasPhysicalX - this.dragOffsetX;
         const newCanvasPhysicalY = mouseCanvasPhysicalY - this.dragOffsetY;
 
@@ -727,13 +753,30 @@ class BehaviorTreeEditor {
         const newWorldX = newCanvasPhysicalX - 2000;
         const newWorldY = newCanvasPhysicalY - 2000;
 
-        // 限制在合理范围内
-        this.draggingNode.x = Math.max(-2000, Math.min(1820, newWorldX));
-        this.draggingNode.y = Math.max(-2000, Math.min(1920, newWorldY));
+        // 限制主节点在合理范围内
+        const clampedX = Math.max(-2000, Math.min(1820, newWorldX));
+        const clampedY = Math.max(-2000, Math.min(1920, newWorldY));
 
-        const nodeElement = document.getElementById(`node-${this.draggingNode.id}`);
-        nodeElement.style.left = `${this.draggingNode.x + 2000}px`;
-        nodeElement.style.top = `${this.draggingNode.y + 2000}px`;
+        // 计算实际移动量（考虑边界限制）
+        const deltaX = clampedX - this.draggingNode.x;
+        const deltaY = clampedY - this.draggingNode.y;
+
+        // 移动所有拖动组中的节点
+        this.draggingNodeGroup.forEach(dragNode => {
+            const targetX = dragNode.x + deltaX;
+            const targetY = dragNode.y + deltaY;
+            
+            // 应用边界限制到每个节点
+            dragNode.x = Math.max(-2000, Math.min(1820, targetX));
+            dragNode.y = Math.max(-2000, Math.min(1920, targetY));
+
+            // 更新节点DOM位置
+            const nodeElement = document.getElementById(`node-${dragNode.id}`);
+            if (nodeElement) {
+                nodeElement.style.left = `${dragNode.x + 2000}px`;
+                nodeElement.style.top = `${dragNode.y + 2000}px`;
+            }
+        });
 
         // ⭐ 检查鼠标是否悬浮在垃圾桶区域上
         this.checkTrashZoneHover(e);
@@ -741,13 +784,54 @@ class BehaviorTreeEditor {
         this.drawConnections();
     }
 
+    // 获取节点的所有子孙节点（递归获取所有后代）
+    getAllDescendants(node) {
+        const descendants = [node]; // 包含节点自身
+        const visited = new Set([node.id]); // 防止循环引用
+        
+        const collectChildren = (parentNode) => {
+            // 获取当前节点的所有子节点
+            const childConnections = this.connections.filter(conn => conn.from === parentNode.id);
+            
+            childConnections.forEach(conn => {
+                const childNode = this.nodes.find(n => n.id === conn.to);
+                if (childNode && !visited.has(childNode.id)) {
+                    visited.add(childNode.id);
+                    descendants.push(childNode);
+                    // 递归收集子节点的后代
+                    collectChildren(childNode);
+                }
+            });
+        };
+        
+        collectChildren(node);
+        return descendants;
+    }
+
     endNodeDrag() {
         if (!this.draggingNode) return;
 
-        const nodeElement = document.getElementById(`node-${this.draggingNode.id}`);
-        nodeElement.classList.remove('dragging');
+        // 移除所有拖动节点的拖动样式
+        if (this.draggingNodeGroup) {
+            this.draggingNodeGroup.forEach(dragNode => {
+                const nodeElement = document.getElementById(`node-${dragNode.id}`);
+                if (nodeElement) {
+                    nodeElement.classList.remove('dragging');
+                }
+            });
+        } else {
+            // 兼容旧版本：只有主节点
+            const nodeElement = document.getElementById(`node-${this.draggingNode.id}`);
+            if (nodeElement) {
+                nodeElement.classList.remove('dragging');
+            }
+        }
 
+        // 清空拖动状态
         this.draggingNode = null;
+        this.draggingNodeGroup = null;
+        this.nodeOffsets = null;
+        
         this.saveToStorage();
 
         // ⭐ 隐藏垃圾桶删除区域
@@ -1937,6 +2021,10 @@ class BehaviorTreeEditor {
             panel.style.display = 'none';
             document.querySelectorAll('.node').forEach(n => {
                 n.classList.remove('selected');
+            });
+            document.querySelectorAll('.form-group').forEach(n => {
+                const input = n.querySelector('input');
+                input.value = '';
             });
         }
     }
