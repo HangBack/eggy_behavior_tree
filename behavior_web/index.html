@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>行为树流程在线编辑器</title>
     <link rel="stylesheet" href="./styles.css">
+    <!-- 引入markdown相关库 -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
 </head>
 <body>
     <div class="toolbar">
@@ -54,6 +56,10 @@
                 </button>
             </div>
             <div class="toolbar-divider"></div>
+            <button class="toolbar-btn" id="help-btn">
+                <span class="icon">❓</span>
+                <span>帮助</span>
+            </button>
             <button class="toolbar-btn" id="settings-btn">
                 <span class="icon">⚙️</span>
                 <span>设置</span>
@@ -364,6 +370,23 @@
             <div class="new-file-footer">
                 <button class="btn btn-primary" id="create-file-btn">创建文件</button>
                 <button class="btn btn-secondary" id="cancel-new-file">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 帮助模态框 -->
+    <div class="help-modal" id="help-modal">
+        <div class="help-container">
+            <div class="help-header">
+                <h2>使用说明</h2>
+                <div class="help-controls">
+                    <span class="help-close" id="help-close">&times;</span>
+                </div>
+            </div>
+            <div class="help-body">
+                <div class="help-content" id="help-content">
+                    <!-- 从helper.md加载的帮助内容 -->
+                </div>
             </div>
         </div>
     </div>

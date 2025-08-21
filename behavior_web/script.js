@@ -422,6 +422,10 @@ class BehaviorTreeEditor {
         document.getElementById('new-file-btn').addEventListener('click', () => this.openNewFileModal());
         document.getElementById('file-manager-btn').addEventListener('click', () => this.openFileManager());
 
+        // 帮助模态框事件监听器
+        document.getElementById('help-btn').addEventListener('click', () => this.openHelp());
+        document.getElementById('help-close').addEventListener('click', () => this.closeHelp());
+
         // 文件管理模态框事件监听器
         document.getElementById('file-manager-close').addEventListener('click', () => this.closeFileManager());
         document.getElementById('refresh-files').addEventListener('click', () => this.refreshFileList());
@@ -701,11 +705,11 @@ class BehaviorTreeEditor {
 
         // 检查是否按住了Ctrl键
         const isCtrlPressed = e.ctrlKey;
-        
+
         // 如果按住Ctrl键，收集所有子节点和它们的相对位置
         this.draggingNodeGroup = [node]; // 至少包含主节点
         this.nodeOffsets = {}; // 存储每个节点相对于主节点的偏移量
-        
+
         if (isCtrlPressed) {
             this.draggingNodeGroup = this.getAllDescendants(node);
             // 计算每个节点相对于主节点的偏移量
@@ -765,7 +769,7 @@ class BehaviorTreeEditor {
         this.draggingNodeGroup.forEach(dragNode => {
             const targetX = dragNode.x + deltaX;
             const targetY = dragNode.y + deltaY;
-            
+
             // 应用边界限制到每个节点
             dragNode.x = Math.max(-2000, Math.min(1820, targetX));
             dragNode.y = Math.max(-2000, Math.min(1920, targetY));
@@ -788,11 +792,11 @@ class BehaviorTreeEditor {
     getAllDescendants(node) {
         const descendants = [node]; // 包含节点自身
         const visited = new Set([node.id]); // 防止循环引用
-        
+
         const collectChildren = (parentNode) => {
             // 获取当前节点的所有子节点
             const childConnections = this.connections.filter(conn => conn.from === parentNode.id);
-            
+
             childConnections.forEach(conn => {
                 const childNode = this.nodes.find(n => n.id === conn.to);
                 if (childNode && !visited.has(childNode.id)) {
@@ -803,7 +807,7 @@ class BehaviorTreeEditor {
                 }
             });
         };
-        
+
         collectChildren(node);
         return descendants;
     }
@@ -831,7 +835,7 @@ class BehaviorTreeEditor {
         this.draggingNode = null;
         this.draggingNodeGroup = null;
         this.nodeOffsets = null;
-        
+
         this.saveToStorage();
 
         // ⭐ 隐藏垃圾桶删除区域
@@ -2721,6 +2725,75 @@ class BehaviorTreeEditor {
         if (this.selectedNode) {
             this.updateNodeDisplay();
         }
+    }
+
+    openHelp() {
+        const modal = document.getElementById('help-modal');
+        modal.classList.add('show');
+        
+        // 如果尚未加载帮助内容，则加载markdown文件
+        if (!this.helpContentLoaded) {
+            this.loadHelpContent();
+        }
+    }
+    
+    // 加载帮助内容
+    async loadHelpContent() {
+        const helpContent = document.getElementById('help-content');
+        
+        try {
+            // 显示加载状态
+            helpContent.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">正在加载帮助文档...</div>';
+            
+            // 请求markdown文件
+            const response = await fetch('./helper.md');
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const markdownText = await response.text();
+            
+            // 使用marked库渲染markdown
+            let htmlContent = marked.parse(markdownText);
+            
+            // 处理按键语法 $(xxx) -> 按键样式
+            htmlContent = this.processKeyboardShortcuts(htmlContent);
+            
+            helpContent.innerHTML = htmlContent;
+            
+            // 标记已加载
+            this.helpContentLoaded = true;
+            
+        } catch (error) {
+            console.error('加载帮助文档失败:', error);
+            helpContent.innerHTML = `
+                <div style="text-align: center; padding: 20px; color: #e74c3c;">
+                    <h3>加载帮助文档失败</h3>
+                    <p>错误信息: ${error.message}</p>
+                    <p>请确保 helper.md 文件存在于当前目录下</p>
+                </div>
+            `;
+        }
+    }
+    
+    // 处理键盘快捷键语法，将$(xxx)转换为按键样式
+    processKeyboardShortcuts(htmlContent) {
+        return htmlContent.replace(/\$\(([^)]+)\)/g, (match, keyText) => {
+            return `<kbd class="keyboard-key">${keyText}</kbd>`;
+        });
+    }
+    
+    // 处理键盘快捷键语法，将$(xxx)转换为按键样式
+    processKeyboardShortcuts(htmlContent) {
+        return htmlContent.replace(/\$\(([^)]+)\)/g, (match, keyText) => {
+            return `<kbd class="keyboard-key">${keyText}</kbd>`;
+        });
+    }
+
+    closeHelp() {
+        const modal = document.getElementById('help-modal');
+        modal.classList.remove('show');
     }
 
     getConnectionStyle() {
