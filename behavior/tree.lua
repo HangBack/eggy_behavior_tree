@@ -170,6 +170,12 @@ function TreeBuilder:wait(name, wait_duration)
     return self
 end
 
+function TreeBuilder:once(name)
+    local node = BT.OnceNode:new(name)
+    self:push_node(node)
+    return self
+end
+
 function TreeBuilder:action(name, func, params)
     local node = BT.ActionNode:new(name, func, params)
     self:add_leaf(node)

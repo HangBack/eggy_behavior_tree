@@ -1168,6 +1168,7 @@ class BehaviorTreeEditor {
                 'RETRY': '重试器',
                 'COOLDOWN': '冷却器',
                 'WAIT': '等待器',
+                'ONCE': '单发器',
                 'ALWAYS_SUCCESS': '总是成功',
                 'ALWAYS_FAILURE': '总是失败',
                 'UNTIL_SUCCESS': '直到成功',

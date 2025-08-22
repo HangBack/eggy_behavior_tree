@@ -67,6 +67,9 @@ function AIConfig.build_node(builder, config, subtrees)
     elseif config.type == BT.NodeType.WAIT then
         -- 支持黑板引用的wait_duration配置
         builder:wait(config.name, config.wait_duration)
+    elseif config.type == BT.NodeType.ONCE then
+        -- 一次性装饰器节点
+        builder:once(config.name)
     elseif config.type == BT.NodeType.ACTION then
         builder:action(config.name, config.func, config.params)
         return

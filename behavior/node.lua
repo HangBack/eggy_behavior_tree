@@ -593,6 +593,53 @@ function WaitNode:reset()
     self.wait_start_time = nil
 end
 
+-- Once装饰器 - 一次性节点，只在第一次遍历时执行
+---@class OnceNode : DecoratorNode
+---@field has_executed boolean 是否已经执行过
+---@field final_result BT.Status? 最终结果状态
+local OnceNode = Class("OnceNode", DecoratorNode)
+
+function OnceNode:init(name)
+    DecoratorNode.init(self, name)
+    self.has_executed = false
+    self.final_result = nil
+end
+
+function OnceNode:execute()
+    if #self.children == 0 then
+        return BT.Status.FAILURE
+    end
+
+    -- 如果已经执行过，直接返回之前的结果
+    if self.has_executed then
+        return self.final_result or BT.Status.FAILURE
+    end
+
+    -- 第一次执行子节点
+    local child_status = self.children[1]:execute()
+
+    -- 如果子节点完成（成功或失败），标记为已执行并保存结果
+    if child_status ~= BT.Status.RUNNING then
+        self.has_executed = true
+        self.final_result = child_status
+    end
+
+    return child_status
+end
+
+function OnceNode:reset()
+    -- 注意：OnceNode的reset不会重置has_executed状态
+    -- 这样保证了它的"一次性"特性，除非显式调用force_reset()
+    DecoratorNode.reset(self)
+end
+
+-- 强制重置一次性节点，允许再次执行
+function OnceNode:force_reset()
+    self.has_executed = false
+    self.final_result = nil
+    DecoratorNode.reset(self)
+end
+
 -- 导出所有节点类
 BT.BaseNode = BaseNode
 BT.SequenceNode = SequenceNode
@@ -612,5 +659,6 @@ BT.SubtreeRefNode = SubtreeRefNode
 BT.ActionNode = ActionNode
 BT.ConditionNode = ConditionNode
 BT.WaitNode = WaitNode
+BT.OnceNode = OnceNode
 
 return BT

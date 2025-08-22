@@ -36,6 +36,7 @@ BT.NodeType = {
     UNTIL_SUCCESS = "UNTIL_SUCCESS",
     UNTIL_FAILURE = "UNTIL_FAILURE",
     WAIT = "WAIT",
+    ONCE = "ONCE",
     SUBTREE_REF = "SUBTREE_REF",
     -- 执行节点
     ACTION = "ACTION",
