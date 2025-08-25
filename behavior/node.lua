@@ -132,47 +132,89 @@ end
 -- Parallel节点 - 并行执行
 ---@class ParallelNode : BaseNode
 ---@field policy BT.ParallelPolicy 并行策略
+---@field is_running boolean 是否运行
+---@field completed_success_count integer 已完成的成功节点数
+---@field completed_failure_count integer 已完成的失败节点数
 local ParallelNode = Class("ParallelNode", BaseNode)
 
 function ParallelNode:init(name, policy)
     BaseNode.init(self, name)
+    self.current_children = {}
+    self.is_running = false
+    self.completed_success_count = 0 -- 已完成的成功节点数
+    self.completed_failure_count = 0 -- 已完成的失败节点数
     BT.Utils.set_node_property(self, "policy", policy or BT.ParallelPolicy.REQUIRE_ALL)
 end
 
 function ParallelNode:execute()
-    local success_count = 0
-    local failure_count = 0
+    local current_success_count = 0
+    local current_failure_count = 0
     local running_count = 0
+    local temp_children = {}
 
-    for _, child in ipairs(self.children) do
-        local status = child:execute()
+    if not self.is_running then
+        -- 第一次执行，执行所有子节点
+        self.completed_success_count = 0
+        self.completed_failure_count = 0
 
-        if status == BT.Status.SUCCESS then
-            success_count = success_count + 1
-        elseif status == BT.Status.FAILURE then
-            failure_count = failure_count + 1
-        else
-            running_count = running_count + 1
+        for _, child in ipairs(self.children) do
+            local status = child:execute()
+
+            if status == BT.Status.SUCCESS then
+                current_success_count = current_success_count + 1
+                self.completed_success_count = self.completed_success_count + 1
+            elseif status == BT.Status.FAILURE then
+                current_failure_count = current_failure_count + 1
+                self.completed_failure_count = self.completed_failure_count + 1
+            else -- RUNNING
+                running_count = running_count + 1
+                table.insert(temp_children, child)
+            end
+        end
+    else
+        -- 后续执行，只执行之前Running的节点
+        current_success_count = self.completed_success_count
+        current_failure_count = self.completed_failure_count
+
+        for _, child in ipairs(self.current_children) do
+            local status = child:execute()
+
+            if status == BT.Status.SUCCESS then
+                current_success_count = current_success_count + 1
+                self.completed_success_count = self.completed_success_count + 1
+            elseif status == BT.Status.FAILURE then
+                current_failure_count = current_failure_count + 1
+                self.completed_failure_count = self.completed_failure_count + 1
+            else -- RUNNING
+                running_count = running_count + 1
+                table.insert(temp_children, child)
+            end
         end
     end
 
-    -- 根据策略判断结果
+    -- 如果还有Running节点，继续运行
+    if running_count > 0 then
+        self.current_children = temp_children
+        self.is_running = true
+        return BT.Status.RUNNING
+    end
+
+    -- 所有节点都执行完毕，根据策略判断结果
+    self.is_running = false
     local policy = BT.Utils.get_node_property(self, "policy")
     if policy == BT.ParallelPolicy.REQUIRE_ONE then
-        if success_count > 0 then
+        if current_success_count > 0 then
             return BT.Status.SUCCESS
-        elseif running_count > 0 then
-            return BT.Status.RUNNING
         else
             return BT.Status.FAILURE
         end
     else -- REQUIRE_ALL
-        if failure_count > 0 then
+        if current_failure_count > 0 then
             return BT.Status.FAILURE
-        elseif success_count == #self.children then
+        elseif current_success_count == #self.children then
             return BT.Status.SUCCESS
         else
-            return BT.Status.RUNNING
+            return BT.Status.FAILURE
         end
     end
 end

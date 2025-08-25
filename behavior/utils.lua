@@ -72,7 +72,7 @@ function BT.Utils.resolve_blackboard_data(data, blackboard)
             return data[3]
         end
     end
-    
+
     -- 如果不是黑板引用格式，直接返回原数据
     return data
 end
@@ -87,7 +87,7 @@ function BT.Utils.set_node_property(node, property_name, value)
         node[property_name] = value
         return
     end
-    
+
     -- 其他属性支持黑板引用
     node[property_name] = value
 end
@@ -101,13 +101,11 @@ function BT.Utils.get_node_property(node, property_name)
     if property_name == "name" then
         return node[property_name]
     end
-    
+
     -- 其他属性支持黑板引用解析
     local raw_value = node[property_name]
     return BT.Utils.resolve_blackboard_data(raw_value, node.blackboard)
 end
-
-
 
 -- 日志函数
 function BT.Utils.log(message)

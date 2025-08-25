@@ -46,7 +46,7 @@ function AIConfig.build_node(builder, config, subtrees)
         builder:inverter(config.name)
     elseif config.type == BT.NodeType.REPEATER then
         -- 支持黑板引用的count配置
-        builder:repeater(config.name, config.count)
+        builder:repeater(config.name, config.repeater_count)
     elseif config.type == BT.NodeType.TIMEOUT then
         -- 支持黑板引用的duration配置
         builder:timeout(config.name, config.timeout_duration)
