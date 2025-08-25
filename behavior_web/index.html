@@ -7,6 +7,11 @@
     <link rel="stylesheet" href="./styles.css">
     <!-- 引入markdown相关库 -->
     <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+    
+    <!-- 引入highlight.js代码高亮库 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/lua.min.js"></script>
 </head>
 <body>
     <div class="toolbar">
@@ -256,6 +261,13 @@
                 </div>
             </div>
             
+            <div class="preview-section">
+                <h2 class="panel-title">实时预览</h2>
+                <div class="action-buttons">
+                    <button class="btn btn-primary" id="preview-lua-btn">预览 Lua 代码</button>
+                </div>
+            </div>
+            
             <div class="export-section">
                 <h2 class="panel-title">导出行为树</h2>
                 <div class="action-buttons">
@@ -388,6 +400,25 @@
                 <div class="help-content" id="help-content">
                     <!-- 从helper.md加载的帮助内容 -->
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lua代码预览模态框 -->
+    <div class="code-preview-modal" id="code-preview-modal">
+        <div class="code-preview-container">
+            <div class="code-preview-header">
+                <h2>Lua 代码预览</h2>
+                <div class="code-preview-controls">
+                    <button class="btn btn-primary" id="copy-code-btn" title="复制代码">
+                        <span class="icon">📋</span>
+                        <span>复制代码</span>
+                    </button>
+                    <span class="code-preview-close" id="code-preview-close">&times;</span>
+                </div>
+            </div>
+            <div class="code-preview-body">
+                <pre><code class="hljs lua" id="code-preview-content"></code></pre>
             </div>
         </div>
     </div>

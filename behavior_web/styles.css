@@ -2627,3 +2627,266 @@ body {
         inset 0 1px 0 rgba(255, 255, 255, 0.2),
         inset 0 -1px 0 rgba(0, 0, 0, 0.3);
 }
+
+/* 代码预览模态框样式 */
+.code-preview-modal {
+    display: none;
+    position: fixed;
+    z-index: 3000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+}
+
+.code-preview-modal.show {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.code-preview-container {
+    position: relative;
+    background-color: #1e1e1e;
+    margin: 2% auto;
+    padding: 0;
+    border: 1px solid #555;
+    border-radius: 15px;
+    width: 95%;
+    max-width: 1200px;
+    height: 90%;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+.code-preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 2px solid #333;
+    background: linear-gradient(135deg, #2d2d2d, #1e1e1e);
+    border-radius: 15px 15px 0 0;
+}
+
+.code-preview-header h2 {
+    margin: 0;
+    color: #4a9ff5;
+    font-size: 1.4rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.code-preview-header h2::before {
+    content: '💻';
+    font-size: 1.2rem;
+}
+
+.code-preview-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.code-preview-controls .btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    font-size: 0.9rem;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    background: rgba(86, 204, 157, 0.8);
+    border: 1px solid rgba(86, 204, 157, 1);
+    color: white;
+    font-weight: 600;
+}
+
+.code-preview-controls .btn:hover {
+    background: rgba(86, 204, 157, 1);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(86, 204, 157, 0.3);
+}
+
+.code-preview-controls .btn.copied {
+    background: #4CAF50 !important;
+    border-color: #4CAF50 !important;
+    animation: pulse 0.3s ease;
+}
+
+.code-preview-controls .btn.copied .icon {
+    animation: checkmark 0.3s ease;
+}
+
+.code-preview-close {
+    color: #aaa;
+    font-size: 2rem;
+    font-weight: bold;
+    cursor: pointer;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.code-preview-close:hover {
+    color: #ff4757;
+    background-color: rgba(255, 71, 87, 0.15);
+    transform: scale(1.1);
+}
+
+.code-preview-body {
+    flex: 1;
+    overflow: hidden;
+    background-color: #1e1e1e;
+    border-radius: 0 0 15px 15px;
+    position: relative;
+}
+
+.code-preview-body pre {
+    margin: 0;
+    height: 100%;
+    overflow: auto;
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 25px;
+}
+
+.code-preview-body code {
+    font-family: 'Monaco', 'Menlo', 'Consolas', 'Ubuntu Mono', 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.7;
+    color: #e0e0e0;
+    background: transparent;
+}
+
+/* 自定义highlight.js样式覆盖 */
+.code-preview-body .hljs {
+    background: transparent !important;
+    color: #e0e0e0 !important;
+    font-size: 14px !important;
+    line-height: 1.7 !important;
+}
+
+/* Lua语法高亮颜色定制 */
+.code-preview-body .hljs-keyword {
+    color: #ff6b6b !important;
+    font-weight: bold;
+}
+
+.code-preview-body .hljs-string {
+    color: #4ecdc4 !important;
+}
+
+.code-preview-body .hljs-comment {
+    color: #95a5a6 !important;
+    font-style: italic;
+}
+
+.code-preview-body .hljs-number {
+    color: #f39c12 !important;
+}
+
+.code-preview-body .hljs-function {
+    color: #74b9ff !important;
+}
+
+.code-preview-body .hljs-built_in {
+    color: #a29bfe !important;
+}
+
+.code-preview-body .hljs-variable {
+    color: #fd79a8 !important;
+}
+
+/* 代码预览滚动条样式 */
+.code-preview-body pre::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+.code-preview-body pre::-webkit-scrollbar-track {
+    background: #2b2b2b;
+    border-radius: 8px;
+}
+
+.code-preview-body pre::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #4a9ff5, #56cc9d);
+    border-radius: 8px;
+    border: 2px solid #2b2b2b;
+}
+
+.code-preview-body pre::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #6bb6ff, #6ed5ac);
+}
+
+.code-preview-body pre::-webkit-scrollbar-corner {
+    background: #2b2b2b;
+}
+
+/* 复制按钮动画 */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+@keyframes checkmark {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+/* 模态框进入动画 */
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .code-preview-container {
+        width: 98%;
+        height: 95%;
+        margin: 1% auto;
+    }
+    
+    .code-preview-header {
+        padding: 12px 15px;
+    }
+    
+    .code-preview-header h2 {
+        font-size: 1.2rem;
+    }
+    
+    .code-preview-controls .btn {
+        padding: 8px 12px;
+        font-size: 0.8rem;
+    }
+    
+    .code-preview-body pre {
+        padding: 15px;
+    }
+    
+    .code-preview-body code {
+        font-size: 12px;
+        line-height: 1.5;
+    }
+}

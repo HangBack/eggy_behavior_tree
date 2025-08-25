@@ -390,6 +390,11 @@ class BehaviorTreeEditor {
         document.getElementById('import-json').addEventListener('click', () => this.importJson());
         document.getElementById('file-input').addEventListener('change', (e) => this.handleFileImport(e));
 
+        // 预览功能事件监听器
+        document.getElementById('preview-lua-btn').addEventListener('click', () => this.previewLua());
+        document.getElementById('copy-code-btn').addEventListener('click', () => this.copyPreviewCode());
+        document.getElementById('code-preview-close').addEventListener('click', () => this.closePreview());
+
         // 设置相关事件监听器
         document.getElementById('settings-btn').addEventListener('click', () => this.openSettings());
         document.getElementById('settings-close').addEventListener('click', () => this.closeSettings());
@@ -2396,7 +2401,7 @@ class BehaviorTreeEditor {
                         .map(line => '        ' + line)
                         .join('\n');
 
-                    subtreesCode.push(`        ["${subtreeNode.name}"] = ${subtreeConfigCode}`);
+                    subtreesCode.push(`        [${JSON.stringify(subtreeNode.name)}] = ${subtreeConfigCode}`);
                 }
             }
         });
@@ -2414,7 +2419,7 @@ class BehaviorTreeEditor {
         }
         console.log(node.type);
 
-        let code = `return {\n    type = BT.NodeType.${node.decoratorType ?? node.type},\n    name = "${node.name}"`;
+        let code = `return {\n    type = BT.NodeType.${node.decoratorType ?? node.type},\n    name = ${JSON.stringify(node.name)}`;
 
         // 处理函数名，支持黑板引用
         if (node.func) {
@@ -2433,7 +2438,7 @@ class BehaviorTreeEditor {
                 const paramName = param.name;
                 const paramValue = this.formatBlackboardReference(param.value, true);
                 if (paramName)
-                    code += `        ["${paramName}"] = ${paramValue || "nil"},\n`;
+                    code += `        [${JSON.stringify(paramName)}] = ${paramValue || "nil"},\n`;
             })
             code = code.at(-2) === ',' ? code.slice(0, -2) + "\n" : code; // 移除最后一个逗号
             code += '    }';
@@ -2467,18 +2472,18 @@ class BehaviorTreeEditor {
 
         if (node.repeaterCount) {
             const repeaterValue = this.formatBlackboardReference(node.repeaterCount, true);
-            code += `,\n    max_retries = ${repeaterValue}`;
+            code += `,\n    repeater_count = ${repeaterValue}`;
         }
 
         if (node.retryCount) {
             const retryValue = this.formatBlackboardReference(node.retryCount, true);
-            code += `,\n    count = ${retryValue}`;
+            code += `,\n    max_retries = ${retryValue}`;
         }
 
         // 处理引用子树装饰器的函数
         if (node.decoratorType === 'SUBTREE_REF' && node.subtree) {
             const subtreeValue = this.formatBlackboardReference(node.subtree, true);
-            code += `,\n    subtree_name = "${subtreeValue}"`;
+            code += `,\n    subtree_name = ${JSON.stringify(subtreeValue)}`;
         }
 
         // 获取子节点（已经按正确顺序排列），排除黑板节点和子树节点
@@ -2575,6 +2580,184 @@ class BehaviorTreeEditor {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+    }
+
+    // ===============================
+    // 预览功能相关方法
+    // ===============================
+
+    // 预览Lua代码
+    previewLua() {
+        // 首先找到所有根节点（包括黑板节点）
+        const allRootNodes = this.nodes.filter(node =>
+            !this.connections.some(conn => conn.to === node.id));
+
+        if (allRootNodes.length === 0) {
+            this.showNotification('没有根节点可预览', 'error');
+            return;
+        }
+
+        // 检查是否有黑板节点作为根节点
+        const blackboardRoots = allRootNodes.filter(node => node.type === 'BLACKBOARD');
+        const nonBlackboardRoots = allRootNodes.filter(node => node.type !== 'BLACKBOARD');
+
+        let actualRoot = null;
+
+        if (blackboardRoots.length > 0) {
+            // 如果有黑板根节点，找到黑板节点连接的第一个非黑板子节点作为实际根节点
+            for (const blackboardRoot of blackboardRoots) {
+                const children = this.connections
+                    .filter(conn => conn.from === blackboardRoot.id)
+                    .map(conn => this.nodes.find(n => n.id === conn.to))
+                    .filter(child => child && child.type !== 'BLACKBOARD');
+
+                if (children.length > 0) {
+                    actualRoot = children[0]; // 使用第一个子节点作为实际根节点
+                    break;
+                }
+            }
+        }
+
+        // 如果没有找到黑板连接的子节点，使用非黑板根节点
+        if (!actualRoot && nonBlackboardRoots.length > 0) {
+            actualRoot = nonBlackboardRoots[0];
+        }
+
+        if (!actualRoot) {
+            this.showNotification('没有有效的根节点可预览', 'error');
+            return;
+        }
+
+        // 生成主树代码和子树代码
+        const { mainTreeCode, subtreesCode } = this.generateLuaCodeWithSubtrees(actualRoot);
+
+        let luaCode;
+        if (subtreesCode.length > 0) {
+            // 如果有子树，输出包含子树的格式
+            luaCode = `return {\n${mainTreeCode.replace(/^return /, '').slice(0, -2)},\n    subtrees = {\n${subtreesCode.join(',\n')}\n    }\n}`;
+        } else {
+            // 如果没有子树，输出简单格式
+            luaCode = mainTreeCode;
+        }
+
+        // 显示预览模态框
+        this.showPreviewModal(luaCode);
+    }
+
+    // 显示预览模态框
+    showPreviewModal(code) {
+        const modal = document.getElementById('code-preview-modal');
+        const codeElement = document.getElementById('code-preview-content');
+        
+        // 清除之前的高亮类名
+        codeElement.className = '';
+        codeElement.removeAttribute('data-highlighted');
+        
+        // 设置代码内容
+        codeElement.textContent = code;
+        
+        // 显示模态框
+        modal.classList.add('show');
+
+        // 使用highlight.js进行语法高亮（延迟执行确保DOM已更新）
+        setTimeout(() => {
+            if (typeof window.hljs !== 'undefined') {
+                // 添加语言类名
+                codeElement.className = 'language-lua';
+                
+                // 执行高亮
+                window.hljs.highlightElement(codeElement);
+                
+                console.log('Highlight.js applied to Lua code');
+            } else {
+                console.warn('Highlight.js not available');
+            }
+        }, 50);
+
+        this.showNotification('Lua代码预览已生成');
+    }
+
+    // 复制预览代码
+    copyPreviewCode() {
+        const codeElement = document.getElementById('code-preview-content');
+        const code = codeElement.textContent;
+
+        if (!code) {
+            this.showNotification('没有可复制的代码', 'error');
+            return;
+        }
+
+        // 获取复制按钮用于显示反馈
+        const copyBtn = document.getElementById('copy-code-btn');
+
+        // 使用现代的Clipboard API
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(code).then(() => {
+                this.showCopySuccess(copyBtn);
+            }).catch((err) => {
+                console.error('复制失败:', err);
+                // 回退到传统方法
+                this.fallbackCopyToClipboard(code, copyBtn);
+            });
+        } else {
+            // 回退到传统的复制方法
+            this.fallbackCopyToClipboard(code, copyBtn);
+        }
+    }
+
+    // 显示复制成功反馈
+    showCopySuccess(copyBtn) {
+        // 保存原始状态
+        const originalText = copyBtn.innerHTML;
+        const originalClass = copyBtn.className;
+
+        // 显示成功状态
+        copyBtn.innerHTML = `<span class="icon">✓</span><span>已复制</span>`;
+        copyBtn.classList.add('copied');
+
+        this.showNotification('代码已复制到剪贴板');
+
+        // 2秒后恢复原始状态
+        setTimeout(() => {
+            copyBtn.innerHTML = originalText;
+            copyBtn.className = originalClass;
+        }, 2000);
+    }
+
+    // 传统的复制到剪贴板方法（兼容性更好）
+    fallbackCopyToClipboard(text, copyBtn) {
+        try {
+            // 创建临时文本区域
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            textArea.style.top = '-999999px';
+            document.body.appendChild(textArea);
+
+            // 选中并复制
+            textArea.focus();
+            textArea.select();
+            
+            const successful = document.execCommand('copy');
+            if (successful) {
+                this.showCopySuccess(copyBtn);
+            } else {
+                throw new Error('复制命令执行失败');
+            }
+
+            // 清理
+            document.body.removeChild(textArea);
+        } catch (err) {
+            console.error('复制失败:', err);
+            this.showNotification('复制失败，请手动选择并复制代码', 'error');
+        }
+    }
+
+    // 关闭预览模态框
+    closePreview() {
+        const modal = document.getElementById('code-preview-modal');
+        modal.classList.remove('show');
     }
 
     saveToStorage() {
