@@ -279,6 +279,9 @@ class BehaviorTreeEditor {
 
     setupKeyboardShortcuts() {
         document.addEventListener('keydown', (e) => {
+            // 检查是否在任何输入框中输入内容
+            const isInInputField = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA';
+            
             // 检查是否在文件管理模态框中
             const isFileManagerOpen = document.getElementById('file-manager-modal').classList.contains('show');
 
@@ -328,35 +331,46 @@ class BehaviorTreeEditor {
                 return;
             }
 
-            // Ctrl+Z撤回和Ctrl+Y恢复（全局生效）
-            if (e.ctrlKey && e.key === 'z') {
-                e.preventDefault();
-                this.undo();
-                return;
-            }
+            // 如果在输入框中，禁用特定的快捷键：Ctrl+Z, Ctrl+Y, Ctrl+C, Ctrl+V
+            if (isInInputField) {
+                if (e.ctrlKey && ['z', 'y', 'c', 'v'].includes(e.key.toLowerCase())) {
+                    // 在输入框中时，不阻止这些快捷键，让它们执行默认的输入框操作
+                    return;
+                }
+            } else {
+                // 非输入框状态下的全局快捷键
+                
+                // Ctrl+Z撤回
+                if (e.ctrlKey && e.key === 'z') {
+                    e.preventDefault();
+                    this.undo();
+                    return;
+                }
 
-            if (e.ctrlKey && e.key === 'y') {
-                e.preventDefault();
-                this.redo();
-                return;
-            }
+                // Ctrl+Y恢复
+                if (e.ctrlKey && e.key === 'y') {
+                    e.preventDefault();
+                    this.redo();
+                    return;
+                }
 
-            // Ctrl+C复制节点（全局生效）
-            if (e.ctrlKey && e.key === 'c' && this.selectedNode) {
-                e.preventDefault();
-                this.copyNode();
-                return;
-            }
+                // Ctrl+C复制节点
+                if (e.ctrlKey && e.key === 'c' && this.selectedNode) {
+                    e.preventDefault();
+                    this.copyNode();
+                    return;
+                }
 
-            // Ctrl+V粘贴节点（全局生效）
-            if (e.ctrlKey && e.key === 'v' && this.copiedNode) {
-                e.preventDefault();
-                this.pasteNode();
-                return;
+                // Ctrl+V粘贴节点
+                if (e.ctrlKey && e.key === 'v' && this.copiedNode) {
+                    e.preventDefault();
+                    this.pasteNode();
+                    return;
+                }
             }
 
             // 其他快捷键只在非输入框状态下生效
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (isInInputField) return;
 
             switch (e.key) {
                 case '1':
