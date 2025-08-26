@@ -30,6 +30,9 @@ class BehaviorTreeEditor {
         this.isRenamingFile = false;
         this.originalFileName = null;
 
+        // 节点复制相关变量
+        this.copiedNode = null;
+
         this.init();
     }
 
@@ -335,6 +338,20 @@ class BehaviorTreeEditor {
             if (e.ctrlKey && e.key === 'y') {
                 e.preventDefault();
                 this.redo();
+                return;
+            }
+
+            // Ctrl+C复制节点（全局生效）
+            if (e.ctrlKey && e.key === 'c' && this.selectedNode) {
+                e.preventDefault();
+                this.copyNode();
+                return;
+            }
+
+            // Ctrl+V粘贴节点（全局生效）
+            if (e.ctrlKey && e.key === 'v' && this.copiedNode) {
+                e.preventDefault();
+                this.pasteNode();
                 return;
             }
 
@@ -658,9 +675,6 @@ class BehaviorTreeEditor {
         path.setAttribute('class', 'temp-connection');
         // 为临时连接添加虚线箭头
         path.setAttribute('marker-end', `url(#arrowhead-dashed-${tempConnection?.toPoint ?? "down"})`);
-
-        console.log(`url(#arrowhead-dashed-${tempConnection?.toPoint ?? "down"})`);
-
 
         this.connectionsSvg.appendChild(path);
     }
@@ -2034,7 +2048,8 @@ class BehaviorTreeEditor {
             });
             document.querySelectorAll('.form-group').forEach(n => {
                 const input = n.querySelector('input');
-                input.value = '';
+                if (input)
+                    input.value = '';
             });
         }
     }
@@ -2107,6 +2122,22 @@ class BehaviorTreeEditor {
     handleDecoratorTypeChange() {
         const decoratorType = document.getElementById('decorator-type').value;
 
+        // 清空所有装饰器属性输入框的内容
+        document.getElementById('repeater-count').value = '';
+        document.getElementById('timeout-duration').value = '';
+        document.getElementById('retry-count').value = '';
+        document.getElementById('cooldown-duration').value = '';
+        document.getElementById('wait-duration').value = '';
+        document.getElementById('subtree-reference').value = '';
+
+        // 清空节点对应的装饰器属性
+        this.selectedNode.repeaterCount = '';
+        this.selectedNode.timeoutDuration = '';
+        this.selectedNode.retryCount = '';
+        this.selectedNode.cooldownDuration = '';
+        this.selectedNode.waitDuration = '';
+        this.selectedNode.subtree = '';
+
         // 保存装饰器类型到节点
         this.selectedNode.decoratorType = decoratorType;
 
@@ -2177,6 +2208,11 @@ class BehaviorTreeEditor {
             const nodeElement = document.getElementById(`node-${node.id}`);
             if (nodeElement) {
                 nodeElement.innerHTML = this.generateNodeHTML(node);
+
+                // 重新绑定事件监听器
+                if (node.type === 'BLACKBOARD') {
+                    this.setupBlackboardEvents(nodeElement, node);
+                }
             }
         });
     }
@@ -2417,7 +2453,6 @@ class BehaviorTreeEditor {
         if (node.type === 'BLACKBOARD') {
             return '';
         }
-        console.log(node.type);
 
         let code = `return {\n    type = BT.NodeType.${node.decoratorType ?? node.type},\n    name = ${JSON.stringify(node.name)}`;
 
@@ -2648,14 +2683,14 @@ class BehaviorTreeEditor {
     showPreviewModal(code) {
         const modal = document.getElementById('code-preview-modal');
         const codeElement = document.getElementById('code-preview-content');
-        
+
         // 清除之前的高亮类名
         codeElement.className = '';
         codeElement.removeAttribute('data-highlighted');
-        
+
         // 设置代码内容
         codeElement.textContent = code;
-        
+
         // 显示模态框
         modal.classList.add('show');
 
@@ -2664,10 +2699,10 @@ class BehaviorTreeEditor {
             if (typeof window.hljs !== 'undefined') {
                 // 添加语言类名
                 codeElement.className = 'language-lua';
-                
+
                 // 执行高亮
                 window.hljs.highlightElement(codeElement);
-                
+
                 console.log('Highlight.js applied to Lua code');
             } else {
                 console.warn('Highlight.js not available');
@@ -2738,7 +2773,7 @@ class BehaviorTreeEditor {
             // 选中并复制
             textArea.focus();
             textArea.select();
-            
+
             const successful = document.execCommand('copy');
             if (successful) {
                 this.showCopySuccess(copyBtn);
@@ -2914,41 +2949,41 @@ class BehaviorTreeEditor {
     openHelp() {
         const modal = document.getElementById('help-modal');
         modal.classList.add('show');
-        
+
         // 如果尚未加载帮助内容，则加载markdown文件
         if (!this.helpContentLoaded) {
             this.loadHelpContent();
         }
     }
-    
+
     // 加载帮助内容
     async loadHelpContent() {
         const helpContent = document.getElementById('help-content');
-        
+
         try {
             // 显示加载状态
             helpContent.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">正在加载帮助文档...</div>';
-            
+
             // 请求markdown文件
             const response = await fetch('./helper.md');
-            
+
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
-            
+
             const markdownText = await response.text();
-            
+
             // 使用marked库渲染markdown
             let htmlContent = marked.parse(markdownText);
-            
+
             // 处理按键语法 $(xxx) -> 按键样式
             htmlContent = this.processKeyboardShortcuts(htmlContent);
-            
+
             helpContent.innerHTML = htmlContent;
-            
+
             // 标记已加载
             this.helpContentLoaded = true;
-            
+
         } catch (error) {
             console.error('加载帮助文档失败:', error);
             helpContent.innerHTML = `
@@ -2960,14 +2995,14 @@ class BehaviorTreeEditor {
             `;
         }
     }
-    
+
     // 处理键盘快捷键语法，将$(xxx)转换为按键样式
     processKeyboardShortcuts(htmlContent) {
         return htmlContent.replace(/\$\(([^)]+)\)/g, (match, keyText) => {
             return `<kbd class="keyboard-key">${keyText}</kbd>`;
         });
     }
-    
+
     // 处理键盘快捷键语法，将$(xxx)转换为按键样式
     processKeyboardShortcuts(htmlContent) {
         return htmlContent.replace(/\$\(([^)]+)\)/g, (match, keyText) => {
@@ -4067,6 +4102,7 @@ class BehaviorTreeEditor {
         setTimeout(() => {
             // 为增加按钮添加事件处理
             const addBtn = nodeElement.querySelector('.add-field-btn');
+
             if (addBtn) {
                 addBtn.addEventListener('click', (e) => {
                     e.stopPropagation(); // 阻止事件冒泡到节点拖动
@@ -4076,6 +4112,7 @@ class BehaviorTreeEditor {
                 // 阻止按钮区域触发节点拖动
                 addBtn.addEventListener('mousedown', (e) => {
                     e.stopPropagation();
+
                 });
             }
 
@@ -4544,6 +4581,97 @@ class BehaviorTreeEditor {
 
         // 默认作为字符串处理
         return `"${value.replace(/"/g, '\\"')}"`;
+    }
+
+    // ===============================
+    // 节点复制功能相关方法
+    // ===============================
+
+    // 复制选中的节点
+    copyNode() {
+        if (!this.selectedNode) {
+            this.showNotification('请先选择要复制的节点', 'error');
+            return;
+        }
+
+        // 深度复制节点数据
+        this.copiedNode = JSON.parse(JSON.stringify(this.selectedNode));
+
+        this.showNotification(`节点 "${this.selectedNode.name}" 已复制`);
+    }
+
+    // 粘贴节点
+    pasteNode() {
+        if (!this.copiedNode) {
+            this.showNotification('没有复制的节点', 'error');
+            return;
+        }
+
+        // 获取鼠标位置或使用默认位置
+        let pasteX, pasteY;
+
+        // 默认位置：在原节点右侧偏移50像素
+        pasteX = this.copiedNode.x + 50;
+        pasteY = this.copiedNode.y + 50;
+
+        // 边界检查，确保粘贴位置在画布范围内
+        pasteX = Math.max(-2000, Math.min(1820, pasteX));
+        pasteY = Math.max(-2000, Math.min(1920, pasteY));
+
+        // 创建新节点
+        const newNode = {
+            ...this.copiedNode,
+            id: this.nextNodeId++,
+            x: pasteX,
+            y: pasteY,
+            name: this.generateUniqueNodeName(this.copiedNode.name)
+        };
+
+        // 创建节点元素并添加到画布
+        const nodeElement = this.createNodeElement(newNode);
+        this.canvas.appendChild(nodeElement);
+        this.nodes.push(newNode);
+
+        // 选中新创建的节点
+        this.selectNode(newNode);
+
+        // 更新界面
+        this.updateNodeDisplay();
+        this.validateAllNodes();
+        this.updateStatus();
+        this.saveToStorage();
+        this.saveHistoryState('粘贴节点');
+
+        this.showNotification(`节点 "${newNode.name}" 已粘贴`);
+    }
+
+    // 生成唯一的节点名称
+    generateUniqueNodeName(originalName) {
+        let baseName = originalName;
+        let counter = 1;
+
+        // 如果原始名称已经包含"_副本"，则提取基础名称
+        const copyMatch = originalName.match(/^(.+)_副本(\d*)$/);
+        if (copyMatch) {
+            baseName = copyMatch[1];
+            counter = copyMatch[2] ? parseInt(copyMatch[2]) + 1 : 2;
+        }
+
+        // 生成新名称并检查是否已存在
+        let newName = `${baseName}_副本${counter > 1 ? counter : ''}`;
+
+        while (this.nodes.some(node => node.name === newName)) {
+            counter++;
+            newName = `${baseName}_副本${counter}`;
+        }
+
+        return newName;
+    }
+
+    // 更新鼠标位置（用于粘贴位置计算）
+    updateMousePosition(e) {
+        this.lastMouseX = e.clientX;
+        this.lastMouseY = e.clientY;
     }
 
     // ===============================
