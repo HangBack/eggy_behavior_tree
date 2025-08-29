@@ -187,7 +187,8 @@ class BehaviorTreeEditor {
             oldRetryCount !== newRetryCount ||
             oldCooldownDuration !== newCooldownDuration ||
             oldWaitDuration !== newWaitDuration ||
-            oldSubtree !== newSubtree;
+            oldSubtree !== newSubtree ||
+            oldAsyncWaitDuration !== newAsyncWaitDuration;
 
         if (hasChanges) {
             this.selectedNode.name = newName;
