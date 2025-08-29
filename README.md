@@ -18,6 +18,7 @@
 接着想要使用自定义行为树，你需要先在你的main文件中导入所需文件
 ```lua
 --- main.lua
+require "ClassUtils"
 require "behavior.config"
 ```
 
