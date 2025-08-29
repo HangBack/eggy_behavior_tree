@@ -203,6 +203,7 @@ class BehaviorTreeEditor {
                 this.selectedNode.retryCount = newRetryCount;
                 this.selectedNode.cooldownDuration = newCooldownDuration;
                 this.selectedNode.waitDuration = newWaitDuration;
+                this.selectedNode.asyncWaitDuration = newAsyncWaitDuration;
                 this.selectedNode.subtree = newSubtree;
             }
 
