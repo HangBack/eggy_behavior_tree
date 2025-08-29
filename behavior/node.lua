@@ -682,6 +682,121 @@ function OnceNode:force_reset()
     DecoratorNode.reset(self)
 end
 
+-- AsyncWaiter装饰器 - 异步等待器，到期后立即执行，其他时间不干扰其他节点
+---@class AsyncWaiterNode : DecoratorNode
+---@field waiter_id number? 等待器ID
+---@field is_timer_set boolean 是否已设置计时器
+---@field is_ready boolean 是否已经到期可以执行
+---@field child_status BT.Status? 子节点执行状态
+---@field is_child_running boolean 子节点是否正在运行
+local AsyncWaiterNode = Class("AsyncWaiterNode", DecoratorNode)
+
+function AsyncWaiterNode:init(name, async_wait_duration)
+    DecoratorNode.init(self, name)
+    BT.Utils.set_node_property(self, "async_wait_duration", async_wait_duration or 1.0)
+    self.waiter_id = nil
+    self.is_timer_set = false
+    self.is_ready = false
+    self.child_status = nil
+    self.is_child_running = false
+end
+
+function AsyncWaiterNode:execute()
+    if #self.children == 0 then
+        return BT.Status.FAILURE
+    end
+
+    -- 如果还没设置计时器，注册到异步等待器管理系统
+    if not self.is_timer_set then
+        local wait_duration = BT.Utils.get_node_property(self, "wait_duration")
+        self.waiter_id = BT.AsyncWaiterManager.register_waiter(self, wait_duration)
+        self.is_timer_set = true
+        self.is_ready = false
+        self.child_status = nil
+        self.is_child_running = false
+    end
+
+    -- 如果计时器还没到期，直接返回FAILURE，不干扰其他节点
+    if not self.is_ready then
+        return BT.Status.FAILURE
+    end
+
+    -- 如果子节点还在运行中，继续执行
+    if self.is_child_running then
+        local status = self.children[1]:execute()
+        if status ~= BT.Status.RUNNING then
+            self.is_child_running = false
+            self.child_status = status
+            -- 执行完成后重置状态，以便下次使用
+            self:reset()
+            return status
+        end
+        return status
+    end
+
+    -- 开始执行子节点
+    if self.children[1] then
+        local child_status = self.children[1]:execute()
+        
+        if child_status == BT.Status.RUNNING then
+            self.is_child_running = true
+            return BT.Status.RUNNING
+        else
+            -- 子节点立即完成，重置状态
+            self:reset()
+            return child_status
+        end
+    else
+        -- 没有子节点，等待完成后返回成功
+        self:reset()
+        return BT.Status.SUCCESS
+    end
+end
+
+-- 计时器到期时由异步等待器管理系统调用
+function AsyncWaiterNode:on_timer_expired()
+    self.is_ready = true
+    -- 可以在这里添加日志或其他处理逻辑
+    BT.Utils.log(string.format("AsyncWaiter '%s' 计时器到期", self.name or "Unknown"))
+end
+
+function AsyncWaiterNode:reset()
+    DecoratorNode.reset(self)
+    
+    -- 清理计时器
+    if self.waiter_id then
+        BT.AsyncWaiterManager.unregister_waiter(self.waiter_id)
+    end
+    
+    self.waiter_id = nil
+    self.is_timer_set = false
+    self.is_ready = false
+    self.child_status = nil
+    self.is_child_running = false
+end
+
+-- 检查是否已经到期
+function AsyncWaiterNode:is_expired()
+    return self.is_ready
+end
+
+-- 获取剩余等待时间
+function AsyncWaiterNode:get_remaining_time()
+    if not self.waiter_id then
+        return BT.Utils.get_node_property(self, "wait_duration")
+    end
+    
+    return BT.AsyncWaiterManager.get_remaining_time(self.waiter_id)
+end
+
+-- 强制触发等待器（用于测试或特殊情况）
+function AsyncWaiterNode:force_trigger()
+    if self.waiter_id then
+        BT.AsyncWaiterManager.unregister_waiter(self.waiter_id)
+    end
+    self:on_timer_expired()
+end
+
 -- 导出所有节点类
 BT.BaseNode = BaseNode
 BT.SequenceNode = SequenceNode
@@ -702,5 +817,6 @@ BT.ActionNode = ActionNode
 BT.ConditionNode = ConditionNode
 BT.WaitNode = WaitNode
 BT.OnceNode = OnceNode
+BT.AsyncWaiterNode = AsyncWaiterNode
 
 return BT

@@ -37,6 +37,7 @@ BT.NodeType = {
     UNTIL_FAILURE = "UNTIL_FAILURE",
     WAIT = "WAIT",
     ONCE = "ONCE",
+    ASYNC_WAITER = "ASYNC_WAITER",
     SUBTREE_REF = "SUBTREE_REF",
     -- 执行节点
     ACTION = "ACTION",
@@ -55,6 +56,76 @@ BT.Utils = {}
 
 BT.Conditions = {} ---@type table<string, fun(blackboard: Blackboard, args: table?) : boolean>
 BT.Actions = {} ---@type table<string, fun(blackboard: Blackboard, args: table?) : BT.Status>
+
+-- 异步等待器管理系统
+BT.AsyncWaiterManager = {
+    waiters = {}, -- 存储所有等待中的AsyncWaiter节点
+    next_id = 1   -- 下一个等待器ID
+}
+
+-- 注册一个异步等待器
+---@param waiter_node AsyncWaiterNode 等待器节点
+---@param wait_duration number 等待时间（秒）
+---@return number waiter_id 等待器ID
+function BT.AsyncWaiterManager.register_waiter(waiter_node, wait_duration)
+    local waiter_id = BT.AsyncWaiterManager.next_id
+    BT.AsyncWaiterManager.next_id = BT.AsyncWaiterManager.next_id + 1
+    
+    local expire_time = BT.Frameout.frame + (wait_duration * 30) -- 转换为帧数
+    
+    BT.AsyncWaiterManager.waiters[waiter_id] = {
+        node = waiter_node,
+        expire_time = expire_time,
+        is_expired = false
+    }
+    
+    return waiter_id
+end
+
+-- 注销一个异步等待器
+---@param waiter_id number 等待器ID
+function BT.AsyncWaiterManager.unregister_waiter(waiter_id)
+    BT.AsyncWaiterManager.waiters[waiter_id] = nil
+end
+
+-- 检查并处理到期的等待器（由根节点每帧调用）
+function BT.AsyncWaiterManager.update()
+    local current_time = BT.Frameout.frame
+    local expired_waiters = {}
+    
+    -- 找出所有到期的等待器
+    for waiter_id, waiter_info in pairs(BT.AsyncWaiterManager.waiters) do
+        if current_time >= waiter_info.expire_time and not waiter_info.is_expired then
+            waiter_info.is_expired = true
+            waiter_info.node:on_timer_expired()
+            table.insert(expired_waiters, waiter_id)
+        end
+    end
+    
+    -- 从等待列表中移除已到期的等待器
+    for _, waiter_id in ipairs(expired_waiters) do
+        BT.AsyncWaiterManager.unregister_waiter(waiter_id)
+    end
+end
+
+-- 获取等待器剩余时间
+---@param waiter_id number 等待器ID
+---@return number remaining_time 剩余时间（秒）
+function BT.AsyncWaiterManager.get_remaining_time(waiter_id)
+    local waiter_info = BT.AsyncWaiterManager.waiters[waiter_id]
+    if not waiter_info then
+        return 0
+    end
+    
+    local current_time = BT.Frameout.frame
+    local remaining_frames = math.max(0, waiter_info.expire_time - current_time)
+    return remaining_frames / 30 -- 转换为秒
+end
+
+-- 清理所有等待器
+function BT.AsyncWaiterManager.clear_all()
+    BT.AsyncWaiterManager.waiters = {}
+end
 
 -- 解析黑板引用数据
 ---@param data any 输入数据

@@ -167,6 +167,7 @@
                         <option value="RETRY">重试器 (Retry)</option>
                         <option value="COOLDOWN">冷却器 (Cooldown)</option>
                         <option value="WAIT">等待器 (Wait)</option>
+                        <option value="ASYNCWAIT">异步等待器 (AsyncWait)</option>
                         <option value="ONCE">单发器 (Once)</option>
                         <option value="ALWAYS_SUCCESS">总是成功 (AlwaysSuccess)</option>
                         <option value="ALWAYS_FAILURE">总是失败 (AlwaysFailure)</option>
@@ -246,6 +247,10 @@
                 <div class="form-group" id="wait-duration-group" style="display: none;">
                     <label for="wait-duration">等待时间(秒)</label>
                     <input type="text" id="wait-duration" placeholder="输入等待时间 或使用@引用">
+                </div>
+                <div class="form-group" id="async-wait-duration-group" style="display: none;">
+                    <label for="async-wait-duration">异步时间(秒)</label>
+                    <input type="text" id="async-wait-duration" placeholder="输入异步时间 或使用@引用">
                 </div>
                 <div class="form-group" id="subtree-reference-group" style="display: none;">
                     <label for="subtree-reference">引用子树名称</label>

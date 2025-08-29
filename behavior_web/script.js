@@ -162,6 +162,7 @@ class BehaviorTreeEditor {
         const oldRetryCount = this.selectedNode.retryCount;
         const oldCooldownDuration = this.selectedNode.cooldownDuration;
         const oldWaitDuration = this.selectedNode.waitDuration;
+        const oldAsyncWaitDuration = this.selectedNode.asyncWaitDuration;
         const oldSubtree = this.selectedNode.subtree;
 
         const newName = document.getElementById('node-name').value;
@@ -173,6 +174,7 @@ class BehaviorTreeEditor {
         const newRetryCount = document.getElementById('retry-count').value;
         const newCooldownDuration = document.getElementById('cooldown-duration').value;
         const newWaitDuration = document.getElementById('wait-duration').value;
+        const newAsyncWaitDuration = document.getElementById('async-wait-duration').value;
         const newSubtree = document.getElementById('subtree-reference').value;
 
         // 检查是否有变更
@@ -281,7 +283,7 @@ class BehaviorTreeEditor {
         document.addEventListener('keydown', (e) => {
             // 检查是否在任何输入框中输入内容
             const isInInputField = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA';
-            
+
             // 检查是否在文件管理模态框中
             const isFileManagerOpen = document.getElementById('file-manager-modal').classList.contains('show');
 
@@ -339,7 +341,7 @@ class BehaviorTreeEditor {
                 }
             } else {
                 // 非输入框状态下的全局快捷键
-                
+
                 // Ctrl+Z撤回
                 if (e.ctrlKey && e.key === 'z') {
                     e.preventDefault();
@@ -2142,6 +2144,7 @@ class BehaviorTreeEditor {
         document.getElementById('retry-count').value = '';
         document.getElementById('cooldown-duration').value = '';
         document.getElementById('wait-duration').value = '';
+        document.getElementById('async-wait-duration').value = '';
         document.getElementById('subtree-reference').value = '';
 
         // 清空节点对应的装饰器属性
@@ -2150,6 +2153,7 @@ class BehaviorTreeEditor {
         this.selectedNode.retryCount = '';
         this.selectedNode.cooldownDuration = '';
         this.selectedNode.waitDuration = '';
+        this.selectedNode.asyncWaitDuration = '';
         this.selectedNode.subtree = '';
 
         // 保存装饰器类型到节点
@@ -2196,6 +2200,10 @@ class BehaviorTreeEditor {
                 document.getElementById('wait-duration-group').style.display = 'block';
                 document.getElementById('wait-duration').value = this.selectedNode.waitDuration || '';
                 break;
+            case 'ASYNCWAIT':
+                document.getElementById('async-wait-duration-group').style.display = 'block';
+                document.getElementById('async-wait-duration').value = this.selectedNode.asyncWaitDuration || '';
+                break;
             case 'SUBTREE_REF':
                 document.getElementById('subtree-reference-group').style.display = 'block';
                 document.getElementById('subtree-reference').value = this.selectedNode.subtree || '';
@@ -2214,6 +2222,7 @@ class BehaviorTreeEditor {
         document.getElementById('retry-count-group').style.display = 'none';
         document.getElementById('cooldown-duration-group').style.display = 'none';
         document.getElementById('wait-duration-group').style.display = 'none';
+        document.getElementById('async-wait-duration-group').style.display = 'none';
         document.getElementById('subtree-reference-group').style.display = 'none';
     }
 
@@ -4360,7 +4369,7 @@ class BehaviorTreeEditor {
     // 更新所有输入框的黑板引用样式
     updateBlackboardReferences() {
         // 获取所有相关输入框（除了节点名称、位置、节点类型、注释说明）
-        const inputs = document.querySelectorAll('#node-function, #node-policy, #repeater-count, #timeout-duration, #retry-count, #cooldown-duration, #subtree-reference, #wait-duration');
+        const inputs = document.querySelectorAll('#node-function, #node-policy, #repeater-count, #timeout-duration, #retry-count, #cooldown-duration, #subtree-reference, #wait-duration, #async-wait-duration');
 
         inputs.forEach(input => {
             this.updateInputBlackboardStyle(input);
@@ -4500,7 +4509,7 @@ class BehaviorTreeEditor {
 
     // 判断输入框是否需要数字验证
     shouldValidateAsNumber(input) {
-        const numericFields = ['repeater-count', 'timeout-duration', 'retry-count', 'cooldown-duration', 'wait-duration'];
+        const numericFields = ['repeater-count', 'timeout-duration', 'retry-count', 'cooldown-duration', 'wait-duration', 'async-wait-duration'];
         return numericFields.includes(input.id);
     }
 
@@ -4544,6 +4553,12 @@ class BehaviorTreeEditor {
                 // 冷却时间：非负数，支持小数
                 isValid = /^\d+(\.\d+)?$/.test(trimmedValue) && parseFloat(trimmedValue) >= 0;
                 errorMessage = '等待时间必须是大于等于0的数字';
+                break;
+
+            case 'async-wait-duration':
+                // 冷却时间：非负数，支持小数
+                isValid = /^\d+(\.\d+)?$/.test(trimmedValue) && parseFloat(trimmedValue) >= 0;
+                errorMessage = '异步时间必须是大于等于0的数字';
                 break;
         }
 
@@ -4830,7 +4845,7 @@ bte = new BehaviorTreeEditor();
 
 // 为所有相关输入框添加黑板引用检测
 document.addEventListener('DOMContentLoaded', () => {
-    const inputs = document.querySelectorAll('#node-function, #node-policy, #repeater-count, #timeout-duration, #retry-count, #cooldown-duration, #subtree-reference, #wait-duration');
+    const inputs = document.querySelectorAll('#node-function, #node-policy, #repeater-count, #timeout-duration, #retry-count, #cooldown-duration, #subtree-reference, #wait-duration, , #async-wait-duration');
 
     inputs.forEach(input => {
         input.addEventListener('input', () => {
