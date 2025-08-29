@@ -94,7 +94,7 @@ class BehaviorTreeEditor {
 
     setupAutoSave() {
         // 监听属性输入变化，实时保存
-        const inputs = ['node-name', 'node-function', 'node-policy', 'node-comment', 'repeater-count', 'timeout-duration', 'retry-count', 'cooldown-duration', 'wait-duration', 'subtree-reference'];
+        const inputs = ['node-name', 'node-function', 'node-policy', 'node-comment', 'repeater-count', 'timeout-duration', 'retry-count', 'cooldown-duration', 'wait-duration', 'subtree-reference', 'async-wait-duration'];
         inputs.forEach(id => {
             const element = document.getElementById(id);
             element.addEventListener('input', () => {
@@ -2529,6 +2529,11 @@ class BehaviorTreeEditor {
         if (node.waitDuration) {
             const waitValue = this.formatBlackboardReference(node.waitDuration, true);
             code += `,\n    wait_duration = ${waitValue}`;
+        }
+
+        if (node.asyncWaitDuration) {
+            const asyncWaitValue = this.formatBlackboardReference(node.asyncWaitDuration, true);
+            code += `,\n    async_wait_duration = ${asyncWaitValue}`;
         }
 
         if (node.repeaterCount) {
