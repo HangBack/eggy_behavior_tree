@@ -4846,7 +4846,7 @@ bte = new BehaviorTreeEditor();
 
 // 为所有相关输入框添加黑板引用检测
 document.addEventListener('DOMContentLoaded', () => {
-    const inputs = document.querySelectorAll('#node-function, #node-policy, #repeater-count, #timeout-duration, #retry-count, #cooldown-duration, #subtree-reference, #wait-duration, , #async-wait-duration');
+    const inputs = document.querySelectorAll('#node-function, #node-policy, #repeater-count, #timeout-duration, #retry-count, #cooldown-duration, #subtree-reference, #wait-duration, #async-wait-duration');
 
     inputs.forEach(input => {
         input.addEventListener('input', () => {
