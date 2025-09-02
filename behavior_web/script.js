@@ -2109,6 +2109,7 @@ class BehaviorTreeEditor {
         // 函数组显示逻辑：条件节点、行为节点需要显示
         const needsFunctionGroup = ['CONDITION', 'ACTION'].includes(this.selectedNode.type) || ['CONDITION_INTERRUPT'].includes(this.selectedNode.decoratorType);
         functionGroup.style.display = needsFunctionGroup ? 'block' : 'none';
+        
 
         // 参数组显示逻辑：条件节点、行为节点需要显示参数配置
         const paramsGroup = document.getElementById('node-params-group');
@@ -2175,6 +2176,8 @@ class BehaviorTreeEditor {
 
         // 首先隐藏所有装饰器属性
         this.hideAllDecoratorAttributes();
+        document.getElementById('function-group').style.display = 'none';
+        document.getElementById('node-params-group').style.display = 'none';
 
         if (!decoratorType) return;
 
@@ -2225,8 +2228,6 @@ class BehaviorTreeEditor {
         document.getElementById('cooldown-duration-group').style.display = 'none';
         document.getElementById('wait-duration-group').style.display = 'none';
         document.getElementById('subtree-reference-group').style.display = 'none';
-        document.getElementById('function-group').style.display = 'none';
-        document.getElementById('node-params-group').style.display = 'none';
     }
 
     updateNodeDisplay() {
