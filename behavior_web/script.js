@@ -127,12 +127,10 @@ class BehaviorTreeEditor {
                 // 收起
                 content.style.display = 'none';
                 arrow.style.transform = 'rotate(0deg)';
-                arrow.textContent = '▶';
             } else {
                 // 展开
                 content.style.display = 'block';
                 arrow.style.transform = 'rotate(90deg)';
-                arrow.textContent = '▼';
             }
         });
     }
@@ -4958,4 +4956,42 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+});
+
+// 节点类型信息映射
+const nodeTypeInfo = {
+    SEQUENCE: { name: "顺序节点", description: "顺序执行子节点，直到一个子节点执行失败，该节点返回成功并不再执行接下来的子节点。全部成功时该节点返回成功" },
+    FALLBACK: { name: "选择节点", description: "顺序执行子节点，直到一个子节点执行成功则该节点返回成功并不再执行接下来的子节点，全部失败时该节点返回失败。" },
+    PARALLEL: { name: "并行节点", description: "并行执行所有子节点，按照策略决定什么时候返回成功、失败或运行" },
+    CONDITION: { name: "条件节点", description: "条件判断节点，只能返回成功和失败状态"},
+    ACTION: { name: "行为节点", description: "执行具体行为，可以返回成功、运行和失败三种状态"},
+    DECORATOR: { name: "装饰节点", description: "装饰节点，只有一个子节点，其中包含多种装饰器类型，每种装饰器类型对结果造成不同影响。"},
+    BLACKBOARD: { name: "黑板节点", description: "共享数据黑板，管理全局变量，可在绝大多数节点属性输入框中通过输入“"},
+    SUBTREE: { name: "子树节点", description: "可复用的子树，支持模块化设计，它只能有一个子节点，通过装饰器的“引用子树”类型节点，引用具体名称即可引用该子树节点。"}
+    // ... 其他节点类型
+};
+
+// 添加节点类型点击事件
+document.querySelectorAll('.node-type').forEach(nodeType => {
+    nodeType.addEventListener('mouseover', function() {
+        // 移除其他节点的选中状态
+        document.querySelectorAll('.node-type').forEach(nt => nt.classList.remove('selected'));
+        // 添加当前节点的选中状态
+        this.classList.add('selected');
+        document.querySelector('#node-type-info').style.display = 'block';
+        
+        // 更新底部信息显示
+        const type = this.dataset.type;
+        const info = nodeTypeInfo[type];
+        if (info) {
+            document.querySelector('.node-info-name').textContent = info.name;
+            document.querySelector('.node-info-description').textContent = info.description;
+        }
+    });
+
+    nodeType.addEventListener('mouseout', function() {
+        document.querySelectorAll('.node-type').forEach(nt => nt.classList.remove('selected'));
+        document.querySelector('#node-type-info').style.display = 'none';
+
+    })
 });

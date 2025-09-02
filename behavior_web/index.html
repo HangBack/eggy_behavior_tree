@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>行为树流程在线编辑器</title>
+    <title>行为树编辑器</title>
     <link rel="stylesheet" href="./styles.css">
     <!-- 引入markdown相关库 -->
     <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
@@ -16,7 +16,7 @@
 <body>
     <div class="toolbar">
         <div class="toolbar-left">
-            <h1 class="toolbar-title">行为树流程编辑器</h1>
+            <h1 class="toolbar-title">行为树编辑器</h1>
             <div class="toolbar-divider"></div>
             <div class="toolbar-group">
                 <button class="toolbar-btn" id="undo-btn" disabled>
@@ -44,7 +44,7 @@
         
         <div class="toolbar-center">
             <div class="current-file-info">
-                <icon path="./icons/file.png"></icon>
+                <icon path="./icons/file.png" style="width: 20px;height: 20px;"></icon>
                 <span id="current-file-display">默认文件</span>
             </div>
         </div>
@@ -74,39 +74,46 @@
     
     <div class="container">
         <div class="panel left-panel">
-            <h2 class="panel-title">节点类型</h2>
+            <h2 class="panel-title">节点定义</h2>
             <div class="node-types">
                 <div class="node-type" data-type="SEQUENCE">
-                    <h3>顺序节点</h3>
-                    <p>顺序执行所有子节点，直到一个失败</p>
+                    <icon path="./icons/node.png" style="width: 15px;height: 15px;"></icon>
+                    <span class="node-type-name">顺序</span>
                 </div>
                 <div class="node-type" data-type="FALLBACK">
-                    <h3>选择节点</h3>
-                    <p>顺序执行子节点，直到一个成功</p>
+                    <icon path="./icons/node.png" style="width: 15px;height: 15px;"></icon>
+                    <span class="node-type-name">选择</span>
                 </div>
                 <div class="node-type" data-type="PARALLEL">
-                    <h3>并行节点</h3>
-                    <p>并行执行所有子节点</p>
+                    <icon path="./icons/node.png" style="width: 15px;height: 15px;"></icon>
+                    <span class="node-type-name">并行</span>
                 </div>
                 <div class="node-type" data-type="CONDITION">
-                    <h3>条件节点</h3>
-                    <p>条件判断节点</p>
+                    <icon path="./icons/node.png" style="width: 15px;height: 15px;"></icon>
+                    <span class="node-type-name">条件</span>
                 </div>
                 <div class="node-type" data-type="ACTION">
-                    <h3>行为节点</h3>
-                    <p>执行具体行为</p>
+                    <icon path="./icons/node.png" style="width: 15px;height: 15px;"></icon>
+                    <span class="node-type-name">行为</span>
                 </div>
                 <div class="node-type" data-type="DECORATOR">
-                    <h3>装饰节点</h3>
-                    <p>装饰节点，只有一个子节点</p>
+                    <icon path="./icons/node.png" style="width: 15px;height: 15px;"></icon>
+                    <span class="node-type-name">装饰</span>
                 </div>
                 <div class="node-type" data-type="BLACKBOARD">
-                    <h3>黑板节点</h3>
-                    <p>共享数据黑板，管理全局变量</p>
+                    <icon path="./icons/node.png" style="width: 15px;height: 15px;"></icon>
+                    <span class="node-type-name">黑板</span>
                 </div>
                 <div class="node-type" data-type="SUBTREE">
-                    <h3>子树节点</h3>
-                    <p>可复用的子树，支持模块化设计</p>
+                    <icon path="./icons/node.png" style="width: 15px;height: 15px;"></icon>
+                    <span class="node-type-name">子树</span>
+                </div>
+            </div>
+            
+            <div class="node-type-info" id="node-type-info" style="display: none;">
+                <div class="node-info-content">
+                    <div class="node-info-name"></div>
+                    <div class="node-info-description"></div>
                 </div>
             </div>
         </div>
@@ -183,7 +190,7 @@
                 </div>
                 <div class="form-group">
                     <label id="position-toggle" style="cursor: pointer; display: flex; align-items: center; gap: 5px;">
-                        <span id="position-arrow" style="transition: transform 0.2s ease;">▶</span>
+                        <icon id="position-arrow" path="./icons/right-arrow.png" style="transition: transform 0.2s ease;"></icon>
                         节点位置
                     </label>
                     <div id="position-content" style="display: none; margin-top: 8px;">

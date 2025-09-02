@@ -45,7 +45,7 @@ icon {
 }
 
 body {
-    background: linear-gradient(135deg, #1a2a6c, #2c3e50);
+    background: radial-gradient(#24326b, #1b2631);
     color: #fff;
     min-height: 100vh;
     overflow: hidden;
@@ -60,7 +60,7 @@ body {
     margin-bottom: 15px;
     padding: 12px 20px;
     background: rgba(30, 35, 48, 0.9);
-    border-radius: 10px;
+    border-radius:  5px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
     backdrop-filter: blur(15px);
     border: 1px solid rgba(255, 255, 255, 0.15);
@@ -78,6 +78,7 @@ body {
     font-size: 1.4rem;
     font-weight: 600;
     color: #4a9ff5;
+    min-width: 210px;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
     margin: 0;
 }
@@ -104,12 +105,11 @@ body {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 12px;
+    padding: 10px 14px;
     border: none;
     border-radius: 5px;
     background: rgba(74, 159, 245, 0.15);
-    border: 1px solid rgba(74, 159, 245, 0.3);
-    color: #4a9ff5;
+    color: #f7f7f7;
     cursor: pointer;
     font-size: 0.85rem;
     font-weight: 500;
@@ -229,11 +229,11 @@ body {
 
 .panel {
     background: rgba(30, 35, 48, 0.85);
-    border-radius: 10px;
+    border-radius:  5px;
     padding: 20px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .left-panel {
@@ -268,8 +268,8 @@ body {
     position: relative;
     overflow: hidden;
     background: rgba(20, 25, 35, 0.8);
-    border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius:  5px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
     z-index: 1;
 }
 
@@ -298,17 +298,76 @@ body {
 
 .node-types {
     display: grid;
-    grid-template-columns: 1fr;
-    gap: 12px;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+/* 节点信息显示区域 */
+.node-type-info {
+    background: rgba(20, 25, 35, 0.6);
+    border-radius: 8px;
+    padding: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    min-height: 120px;
+}
+
+.node-info-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #56cc9d;
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid rgba(86, 204, 157, 0.3);
+}
+
+.node-info-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.node-info-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #4a9ff5;
+}
+
+.node-info-description {
+    font-size: 0.9rem;
+    color: #aaa;
+    line-height: 1.4;
+}
+
+/* 节点类型选中状态 */
+.node-type.selected {
+    border-color: white !important;
+    box-shadow: 0 0 0 2px rgba(86, 204, 157, 0.4), 0 4px 12px rgba(0, 0, 0, 0.3);
+    transform: translateY(-1px);
 }
 
 .node-type {
-    padding: 15px;
+    height: 50px;
     border-radius: 8px;
     cursor: grab;
     transition: all 0.2s ease;
     position: relative;
     overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0;
+}
+
+.node-type-name {
+    font-size: 1.0rem;
+    font-weight: 600;
+    text-align: center;
+    color: white;
+    line-height: 1.2;
+    pointer-events: none;
+    word-break: break-all;
 }
 
 .node-type[data-type="SEQUENCE"] {
@@ -386,7 +445,7 @@ body {
 }
 
 .node-type[data-type="DECORATOR"]::before {
-    background: #f1c40f;
+    background: gold;
 }
 
 .node-type[data-type="BLACKBOARD"] {
@@ -437,18 +496,6 @@ body {
     left: 0;
     width: 4px;
     height: 100%;
-}
-
-.node-type h3 {
-    font-size: 1.1rem;
-    margin-bottom: 5px;
-    pointer-events: none;
-}
-
-.node-type p {
-    font-size: 0.9rem;
-    color: #a0c6f7;
-    pointer-events: none;
 }
 
 .toolbox {
@@ -544,9 +591,9 @@ body {
 }
 
 .node[data-type="DECORATOR"] {
-    background: rgba(241, 196, 15, 0.9);
+    background: rgba(255, 217, 0, 0.9);
     border-color: #f1c40f;
-    color: #2c3e50;
+    color: #05203b;
 }
 
 .node[data-type="BLACKBOARD"] {
@@ -1462,6 +1509,7 @@ body {
 .current-file-info {
     color: #56cc9d;
     font-weight: 600;
+    display: flex;
 }
 
 .current-file-info span {
