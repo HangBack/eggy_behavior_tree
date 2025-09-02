@@ -1,4 +1,62 @@
 
+// Icon渲染系统
+class IconRenderer {
+    static init() {
+        // 页面加载完成后渲染所有icon
+        document.addEventListener('DOMContentLoaded', () => {
+            IconRenderer.renderAllIcons();
+        });
+        
+        // 监听DOM变化，自动渲染新添加的icon
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                mutation.addedNodes.forEach((node) => {
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        if (node.tagName === 'ICON') {
+                            IconRenderer.renderIcon(node);
+                        } else {
+                            const icons = node.querySelectorAll ? node.querySelectorAll('icon') : [];
+                            icons.forEach(icon => IconRenderer.renderIcon(icon));
+                        }
+                    }
+                });
+            });
+        });
+        
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    }
+    
+    static renderAllIcons() {
+        const icons = document.querySelectorAll('icon');
+        icons.forEach(icon => IconRenderer.renderIcon(icon));
+    }
+    
+    static renderIcon(iconElement) {
+        const path = iconElement.getAttribute('path');
+        if (path) {
+            // 直接应用背景图片样式，避免额外的HTTP请求
+            iconElement.style.backgroundImage = `url('${path}')`;
+            iconElement.style.backgroundSize = 'contain';
+            iconElement.style.backgroundRepeat = 'no-repeat';
+            iconElement.style.backgroundPosition = 'center';
+            
+            // 添加错误处理类，如果图片加载失败会自动隐藏
+            iconElement.style.display = 'inline-block';
+            iconElement.style.width = iconElement.style.width || '16px';
+            iconElement.style.height = iconElement.style.height || '16px';
+        } else {
+            // 没有path属性，隐藏元素
+            iconElement.style.display = 'none';
+        }
+    }
+}
+
+// 初始化Icon渲染系统
+IconRenderer.init();
+
 class BehaviorTreeEditor {
     constructor() {
         this.canvas = document.getElementById('canvas');
@@ -2820,7 +2878,7 @@ class BehaviorTreeEditor {
         const originalClass = copyBtn.className;
 
         // 显示成功状态
-        copyBtn.innerHTML = `<span class="icon">✓</span><span>已复制</span>`;
+        copyBtn.innerHTML = `<icon path="./icons/success.png"></icon><span>已复制</span>`;
         copyBtn.classList.add('copied');
 
         this.showNotification('代码已复制到剪贴板');
@@ -3739,7 +3797,7 @@ class BehaviorTreeEditor {
             return `
                 <div class="file-item ${isCurrentFile ? 'current' : ''}" data-filename="${file.name}" onclick="bte.selectFileItem('${file.name}')">
                     <div class="file-name">
-                        <span class="icon">📄</span>
+                        <icon path="./icons/file.png"></icon>
                         <span>${file.name}</span>
                     </div>
                     <div class="file-info">

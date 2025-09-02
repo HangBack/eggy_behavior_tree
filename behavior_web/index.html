@@ -20,16 +20,16 @@
             <div class="toolbar-divider"></div>
             <div class="toolbar-group">
                 <button class="toolbar-btn" id="undo-btn" disabled>
-                    <span class="icon">↶</span>
+                    <icon path="./icons/undo.png"></icon>
                     <span>撤回</span>
                 </button>
                 <button class="toolbar-btn" id="redo-btn" disabled>
-                    <span class="icon">↷</span>
+                    <icon path="./icons/redo.png"></icon>
                     <span>恢复</span>
                 </button>
                 <div class="history-dropdown">
                     <button class="toolbar-btn" id="history-btn">
-                        <span class="icon">📋</span>
+                        <icon path="./icons/history.png"></icon>
                         <span>历史</span>
                     </button>
                     <div class="history-list" id="history-list">
@@ -44,7 +44,7 @@
         
         <div class="toolbar-center">
             <div class="current-file-info">
-                <span class="icon">📄</span>
+                <icon path="./icons/file.png"></icon>
                 <span id="current-file-display">默认文件</span>
             </div>
         </div>
@@ -52,21 +52,21 @@
         <div class="toolbar-right">
             <div class="toolbar-group">
                 <button class="toolbar-btn" id="new-file-btn">
-                    <span class="icon">📄</span>
+                    <icon path="./icons/new-file.png"></icon>
                     <span>新建</span>
                 </button>
                 <button class="toolbar-btn" id="file-manager-btn">
-                    <span class="icon">📁</span>
+                    <icon path="./icons/folder.png"></icon>
                     <span>文件</span>
                 </button>
             </div>
             <div class="toolbar-divider"></div>
             <button class="toolbar-btn" id="help-btn">
-                <span class="icon">❓</span>
+                <icon path="./icons/help.png"></icon>
                 <span>帮助</span>
             </button>
             <button class="toolbar-btn" id="settings-btn">
-                <span class="icon">⚙️</span>
+                <icon path="./icons/settings.png"></icon>
                 <span>设置</span>
             </button>
         </div>
@@ -117,30 +117,30 @@
             
             <!-- 垃圾桶删除区域 -->
             <div class="trash-zone" id="trash-zone">
-                <span class="trash-icon">🗑️</span>
+                <span class="trash-icon"><icon path="./icons/trash.png" style="width: 45px;height: 45px;"></icon></span>
                 <span class="trash-text">删除</span>
             </div>
             
             <div class="canvas-toolbar">
                 <div class="tool-item active" id="select-tool" title="选择工具 (1)">
-                    <span>✏️</span>
+                    <icon path="./icons/select.png"></icon>
                 </div>
                 <div class="tool-item" id="connect-tool" title="连线工具 (2)">
-                    <span>🔗</span>
+                    <icon path="./icons/connect.png"></icon>
                 </div>
                 <div class="tool-item" id="delete-tool" title="删除工具 (3)">
-                    <span>🗑️</span>
+                    <icon path="./icons/delete.png"></icon>
                 </div>
                 <div class="tool-item" id="disconnect-tool" title="取消连接 (4)">
-                    <span>✂️</span>
+                    <icon path="./icons/disconnect.png"></icon>
                 </div>
             </div>
             
             <div class="zoom-controls">
                 <div class="zoom-btn" id="zoom-in">+</div>
                 <div class="zoom-btn" id="zoom-out">-</div>
-                <div class="zoom-btn" id="reset-view">↺</div>
-                <div class="zoom-btn" id="center-nodes" title="定位到节点">📍</div>
+                <div class="zoom-btn" id="reset-view"><icon path="./icons/reset.png"></icon></div>
+                <div class="zoom-btn" id="center-nodes" title="定位到节点"><icon path="./icons/location.png"></icon></div>
             </div>
             
             <div class="status-bar">
@@ -418,10 +418,10 @@
     <div class="code-preview-modal" id="code-preview-modal">
         <div class="code-preview-container">
             <div class="code-preview-header">
-                <h2>Lua 代码预览</h2>
+                <h2><icon path="./icons/preview.png" style="width: 1.5em;height: 1.5em;"></icon>Lua 代码预览</h2>
                 <div class="code-preview-controls">
                     <button class="btn btn-primary" id="copy-code-btn" title="复制代码">
-                        <span class="icon">📋</span>
+                        <icon path="./icons/copy.png" style="width: 1.5em;height: 1.5em;"></icon>
                         <span>复制代码</span>
                     </button>
                     <span class="code-preview-close" id="code-preview-close">&times;</span>
