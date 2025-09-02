@@ -94,7 +94,7 @@ class BehaviorTreeEditor {
 
     setupAutoSave() {
         // 监听属性输入变化，实时保存
-        const inputs = ['node-name', 'node-function', 'node-policy', 'node-comment', 'repeater-count', 'timeout-duration', 'retry-count', 'cooldown-duration', 'wait-duration', 'subtree-reference', 'async-wait-duration'];
+        const inputs = ['node-name', 'node-function', 'node-policy', 'node-comment', 'repeater-count', 'timeout-duration', 'retry-count', 'cooldown-duration', 'wait-duration', 'subtree-reference'];
         inputs.forEach(id => {
             const element = document.getElementById(id);
             element.addEventListener('input', () => {
@@ -162,7 +162,6 @@ class BehaviorTreeEditor {
         const oldRetryCount = this.selectedNode.retryCount;
         const oldCooldownDuration = this.selectedNode.cooldownDuration;
         const oldWaitDuration = this.selectedNode.waitDuration;
-        const oldAsyncWaitDuration = this.selectedNode.asyncWaitDuration;
         const oldSubtree = this.selectedNode.subtree;
 
         const newName = document.getElementById('node-name').value;
@@ -174,7 +173,6 @@ class BehaviorTreeEditor {
         const newRetryCount = document.getElementById('retry-count').value;
         const newCooldownDuration = document.getElementById('cooldown-duration').value;
         const newWaitDuration = document.getElementById('wait-duration').value;
-        const newAsyncWaitDuration = document.getElementById('async-wait-duration').value;
         const newSubtree = document.getElementById('subtree-reference').value;
 
         // 检查是否有变更
@@ -187,8 +185,7 @@ class BehaviorTreeEditor {
             oldRetryCount !== newRetryCount ||
             oldCooldownDuration !== newCooldownDuration ||
             oldWaitDuration !== newWaitDuration ||
-            oldSubtree !== newSubtree ||
-            oldAsyncWaitDuration !== newAsyncWaitDuration;
+            oldSubtree !== newSubtree;
 
         if (hasChanges) {
             this.selectedNode.name = newName;
@@ -203,7 +200,6 @@ class BehaviorTreeEditor {
                 this.selectedNode.retryCount = newRetryCount;
                 this.selectedNode.cooldownDuration = newCooldownDuration;
                 this.selectedNode.waitDuration = newWaitDuration;
-                this.selectedNode.asyncWaitDuration = newAsyncWaitDuration;
                 this.selectedNode.subtree = newSubtree;
             }
 
@@ -1205,13 +1201,13 @@ class BehaviorTreeEditor {
                 'RETRY': '重试器',
                 'COOLDOWN': '冷却器',
                 'WAIT': '等待器',
-                'ASYNCWAIT': '异步等待器',
                 'ONCE': '单发器',
                 'ALWAYS_SUCCESS': '总是成功',
                 'ALWAYS_FAILURE': '总是失败',
                 'UNTIL_SUCCESS': '直到成功',
                 'UNTIL_FAILURE': '直到失败',
-                'SUBTREE_REF': '引用子树'
+                'SUBTREE_REF': '引用子树',
+                'CONDITION_INTERRUPT': '条件中断节点',
             };
             displayTag = decoratorNames[node.decoratorType] || '装饰节点';
         }
@@ -2111,7 +2107,7 @@ class BehaviorTreeEditor {
         const decoratorTypeGroup = document.getElementById('decorator-type-group');
 
         // 函数组显示逻辑：条件节点、行为节点需要显示
-        const needsFunctionGroup = ['CONDITION', 'ACTION'].includes(this.selectedNode.type);
+        const needsFunctionGroup = ['CONDITION', 'ACTION'].includes(this.selectedNode.type) || ['CONDITION_INTERRUPT'].includes(this.selectedNode.decoratorType);
         functionGroup.style.display = needsFunctionGroup ? 'block' : 'none';
 
         // 参数组显示逻辑：条件节点、行为节点需要显示参数配置
@@ -2147,7 +2143,6 @@ class BehaviorTreeEditor {
         document.getElementById('retry-count').value = '';
         document.getElementById('cooldown-duration').value = '';
         document.getElementById('wait-duration').value = '';
-        document.getElementById('async-wait-duration').value = '';
         document.getElementById('subtree-reference').value = '';
 
         // 清空节点对应的装饰器属性
@@ -2156,7 +2151,6 @@ class BehaviorTreeEditor {
         this.selectedNode.retryCount = '';
         this.selectedNode.cooldownDuration = '';
         this.selectedNode.waitDuration = '';
-        this.selectedNode.asyncWaitDuration = '';
         this.selectedNode.subtree = '';
 
         // 保存装饰器类型到节点
@@ -2203,10 +2197,6 @@ class BehaviorTreeEditor {
                 document.getElementById('wait-duration-group').style.display = 'block';
                 document.getElementById('wait-duration').value = this.selectedNode.waitDuration || '';
                 break;
-            case 'ASYNCWAIT':
-                document.getElementById('async-wait-duration-group').style.display = 'block';
-                document.getElementById('async-wait-duration').value = this.selectedNode.asyncWaitDuration || '';
-                break;
             case 'SUBTREE_REF':
                 document.getElementById('subtree-reference-group').style.display = 'block';
                 document.getElementById('subtree-reference').value = this.selectedNode.subtree || '';
@@ -2225,7 +2215,6 @@ class BehaviorTreeEditor {
         document.getElementById('retry-count-group').style.display = 'none';
         document.getElementById('cooldown-duration-group').style.display = 'none';
         document.getElementById('wait-duration-group').style.display = 'none';
-        document.getElementById('async-wait-duration-group').style.display = 'none';
         document.getElementById('subtree-reference-group').style.display = 'none';
     }
 
@@ -2529,11 +2518,6 @@ class BehaviorTreeEditor {
         if (node.waitDuration) {
             const waitValue = this.formatBlackboardReference(node.waitDuration, true);
             code += `,\n    wait_duration = ${waitValue}`;
-        }
-
-        if (node.asyncWaitDuration) {
-            const asyncWaitValue = this.formatBlackboardReference(node.asyncWaitDuration, true);
-            code += `,\n    async_wait_duration = ${asyncWaitValue}`;
         }
 
         if (node.repeaterCount) {
@@ -4377,7 +4361,7 @@ class BehaviorTreeEditor {
     // 更新所有输入框的黑板引用样式
     updateBlackboardReferences() {
         // 获取所有相关输入框（除了节点名称、位置、节点类型、注释说明）
-        const inputs = document.querySelectorAll('#node-function, #node-policy, #repeater-count, #timeout-duration, #retry-count, #cooldown-duration, #subtree-reference, #wait-duration, #async-wait-duration');
+        const inputs = document.querySelectorAll('#node-function, #node-policy, #repeater-count, #timeout-duration, #retry-count, #cooldown-duration, #subtree-reference, #wait-duration');
 
         inputs.forEach(input => {
             this.updateInputBlackboardStyle(input);
@@ -4517,7 +4501,7 @@ class BehaviorTreeEditor {
 
     // 判断输入框是否需要数字验证
     shouldValidateAsNumber(input) {
-        const numericFields = ['repeater-count', 'timeout-duration', 'retry-count', 'cooldown-duration', 'wait-duration', 'async-wait-duration'];
+        const numericFields = ['repeater-count', 'timeout-duration', 'retry-count', 'cooldown-duration', 'wait-duration'];
         return numericFields.includes(input.id);
     }
 
@@ -4561,12 +4545,6 @@ class BehaviorTreeEditor {
                 // 冷却时间：非负数，支持小数
                 isValid = /^\d+(\.\d+)?$/.test(trimmedValue) && parseFloat(trimmedValue) >= 0;
                 errorMessage = '等待时间必须是大于等于0的数字';
-                break;
-
-            case 'async-wait-duration':
-                // 冷却时间：非负数，支持小数
-                isValid = /^\d+(\.\d+)?$/.test(trimmedValue) && parseFloat(trimmedValue) >= 0;
-                errorMessage = '异步时间必须是大于等于0的数字';
                 break;
         }
 
@@ -4717,7 +4695,7 @@ class BehaviorTreeEditor {
 
     // 初始化参数界面
     initializeParamsUI() {
-        if (!this.selectedNode || !['CONDITION', 'ACTION'].includes(this.selectedNode.type)) {
+        if (!this.selectedNode || !(['CONDITION', 'ACTION'].includes(this.selectedNode.type) || ['CONDITION_INTERRUPT'].includes(this.selectedNode.decoratorType))) {
             return;
         }
 
@@ -4768,7 +4746,9 @@ class BehaviorTreeEditor {
 
     // 添加参数
     addParameter() {
-        if (!this.selectedNode || !['CONDITION', 'ACTION'].includes(this.selectedNode.type)) {
+        console.log(!this.selectedNode, !['CONDITION', 'ACTION'].includes(this.selectedNode.type), !['CONDITION_INTERRUPT'].includes(this.selectedNode.decoratorType));
+        
+        if (!(this.selectedNode && (['CONDITION', 'ACTION'].includes(this.selectedNode.type) || ['CONDITION_INTERRUPT'].includes(this.selectedNode.decoratorType)))) {
             return;
         }
 
@@ -4853,7 +4833,7 @@ bte = new BehaviorTreeEditor();
 
 // 为所有相关输入框添加黑板引用检测
 document.addEventListener('DOMContentLoaded', () => {
-    const inputs = document.querySelectorAll('#node-function, #node-policy, #repeater-count, #timeout-duration, #retry-count, #cooldown-duration, #subtree-reference, #wait-duration, #async-wait-duration');
+    const inputs = document.querySelectorAll('#node-function, #node-policy, #repeater-count, #timeout-duration, #retry-count, #cooldown-duration, #subtree-reference, #wait-duration');
 
     inputs.forEach(input => {
         input.addEventListener('input', () => {

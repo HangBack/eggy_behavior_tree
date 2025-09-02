@@ -71,9 +71,9 @@ function AIConfig.build_node(builder, config, subtrees)
     elseif config.type == BT.NodeType.ONCE then
         -- 一次性装饰器节点
         builder:once(config.name)
-    elseif config.type == BT.NodeType.ASYNC_WAITER then
-        -- 异步等待器装饰器节点
-        builder:async_waiter(config.name, config.async_wait_duration)
+    elseif config.type == BT.NodeType.CONDITION_INTERRUPT then
+        -- 条件中断装饰器节点
+        builder:condition_interrupt(config.name, config.func, config.params)
     elseif config.type == BT.NodeType.ACTION then
         builder:action(config.name, config.func, config.params)
         return

@@ -58,9 +58,6 @@ function BehaviorTree:tick()
         return BT.Status.FAILURE
     end
 
-    -- 更新异步等待器管理系统
-    BT.AsyncWaiterManager.update()
-
     self.is_running = true
     local status = self.root:execute()
 
@@ -82,7 +79,6 @@ end
 -- 销毁行为树，清理所有异步等待器
 function BehaviorTree:destroy()
     self:reset()
-    BT.AsyncWaiterManager.clear_all()
     self.root = nil
     self.blackboard = nil
 end
@@ -187,8 +183,8 @@ function TreeBuilder:once(name)
     return self
 end
 
-function TreeBuilder:async_waiter(name, wait_duration)
-    local node = BT.AsyncWaiterNode:new(name, wait_duration)
+function TreeBuilder:condition_interrupt(name, condition_func, params)
+    local node = BT.ConditionInterruptNode:new(name, condition_func, params)
     self:push_node(node)
     return self
 end
