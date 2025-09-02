@@ -2202,7 +2202,7 @@ class BehaviorTreeEditor {
                 break;
             case 'CONDITION_INTERRUPT':
                 document.getElementById('function-group').style.display = 'block';
-                document.getElementById('node-function').value = this.selectedNode.waitDuration || '';
+                document.getElementById('node-function').value = this.selectedNode.func || '';
                 document.getElementById('node-params-group').style.display = 'block';
                 this.renderParamsList();
                 break;
