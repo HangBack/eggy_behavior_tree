@@ -592,12 +592,7 @@ function WaitNode:init(name, wait_duration)
     self.is_waiting = false
 end
 
-function WaitNode:execute()
-    if #self.children == 0 then
-        return BT.Status.FAILURE
-    end
-
-    -- 如果还没开始等待，开始计时
+function WaitNode:execute() -- 如果还没开始等待，开始计时
     if not self.is_waiting then
         self.wait_start_time = BT.Frameout.frame
         self.is_waiting = true
@@ -611,6 +606,10 @@ function WaitNode:execute()
 
     if elapsed_time < wait_duration then
         return BT.Status.RUNNING
+    end
+
+    if #self.children == 0 then
+        return BT.Status.FAILURE
     end
 
     -- 等待结束，执行子节点
