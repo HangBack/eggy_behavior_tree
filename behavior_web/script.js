@@ -2144,6 +2144,7 @@ class BehaviorTreeEditor {
         document.getElementById('cooldown-duration').value = '';
         document.getElementById('wait-duration').value = '';
         document.getElementById('subtree-reference').value = '';
+        document.getElementById('node-function').value = '';
 
         // 清空节点对应的装饰器属性
         this.selectedNode.repeaterCount = '';
@@ -2152,6 +2153,8 @@ class BehaviorTreeEditor {
         this.selectedNode.cooldownDuration = '';
         this.selectedNode.waitDuration = '';
         this.selectedNode.subtree = '';
+        this.selectedNode.params = [];
+        this.selectedNode.func = '';
 
         // 保存装饰器类型到节点
         this.selectedNode.decoratorType = decoratorType;
@@ -2216,6 +2219,8 @@ class BehaviorTreeEditor {
         document.getElementById('cooldown-duration-group').style.display = 'none';
         document.getElementById('wait-duration-group').style.display = 'none';
         document.getElementById('subtree-reference-group').style.display = 'none';
+        document.getElementById('function-group').style.display = 'none';
+        document.getElementById('node-params-group').style.display = 'none';
     }
 
     updateNodeDisplay() {
