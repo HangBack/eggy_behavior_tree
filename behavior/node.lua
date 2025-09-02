@@ -726,6 +726,48 @@ function ConditionInterruptNode:execute()
     return child_status
 end
 
+-- EventListen装饰器 - 事件驱动节点
+-- 监听指定的全局自定义事件，当事件触发时执行子节点
+---@class EventListenNode : DecoratorNode
+---@field event_name string 监听的事件名称
+---@field event_handler_id integer? 事件处理器ID
+---@field event_received boolean 是否接收到事件
+---@field event_data table? 事件数据
+---@field is_executing boolean 是否正在执行子节点
+local EventListenNode = Class("EventListenNode", DecoratorNode)
+
+function EventListenNode:init(name, event_name, proxy_property)
+    DecoratorNode.init(self, name)
+    BT.Utils.set_node_property(self, "event_name", event_name or "")
+    BT.Utils.set_node_property(self, "proxy_property", proxy_property or "")
+    self.event_handler_id = LuaAPI.global_register_custom_event(event_name, function(_, _, data)
+        local property = BT.Utils.get_node_property(self, "proxy_property")
+        local blackboard = self.blackboard
+        blackboard:set(property, data)
+        self:execute()
+    end)
+end
+
+function EventListenNode:execute()
+    if #self.children == 0 then
+        return BT.Status.FAILURE
+    end
+    local child_status = self.children[1]:execute()
+
+    return child_status
+end
+
+function EventListenNode:reset()
+    DecoratorNode.reset(self)
+    local blackboard = self.blackboard
+    local property = BT.Utils.get_node_property(self, "proxy_property")
+    blackboard:set(property, nil)
+end
+
+function EventListenNode:get_event_name()
+    return BT.Utils.get_node_property(self, "event_name")
+end
+
 -- 导出所有节点类
 BT.BaseNode = BaseNode
 BT.SequenceNode = SequenceNode
@@ -747,5 +789,6 @@ BT.ConditionNode = ConditionNode
 BT.WaitNode = WaitNode
 BT.OnceNode = OnceNode
 BT.ConditionInterruptNode = ConditionInterruptNode
+BT.EventListenNode = EventListenNode
 
 return BT

@@ -167,7 +167,6 @@
                         <option value="RETRY">重试器 (Retry)</option>
                         <option value="COOLDOWN">冷却器 (Cooldown)</option>
                         <option value="WAIT">等待器 (Wait)</option>
-                        <option value="ASYNCWAIT">异步等待器 (AsyncWait)</option>
                         <option value="ONCE">单发器 (Once)</option>
                         <option value="ALWAYS_SUCCESS">总是成功 (AlwaysSuccess)</option>
                         <option value="ALWAYS_FAILURE">总是失败 (AlwaysFailure)</option>
@@ -175,6 +174,7 @@
                         <option value="UNTIL_FAILURE">直到失败 (UntilFailure)</option>
                         <option value="SUBTREE_REF">引用子树 (SubtreeRef)</option>
                         <option value="CONDITION_INTERRUPT">条件中断 (ConditionInterrupt)</option>
+                        <option value="EVENT_LISTEN">事件监听 (EventListen)</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -252,6 +252,14 @@
                 <div class="form-group" id="subtree-reference-group" style="display: none;">
                     <label for="subtree-reference">引用子树名称</label>
                     <input type="text" id="subtree-reference" placeholder="输入要引用的子树名称">
+                </div>
+                <div class="form-group" id="event-listen-name-group" style="display: none;">
+                    <label for="event-listen-name">监听事件名称</label>
+                    <input type="text" id="event-listen-name" placeholder="输入需要监听的事件名称 或使用@引用">
+                </div>
+                <div class="form-group" id="event-listen-proxy-group" style="display: none;">
+                    <label for="event-listen-proxy">黑板代理字段</label>
+                    <input type="text" id="event-listen-proxy" placeholder="输入一个键名 事件接收的参数将暂存在黑板中">
                 </div>
                 <div class="form-group">
                     <label for="node-comment">注释说明</label>

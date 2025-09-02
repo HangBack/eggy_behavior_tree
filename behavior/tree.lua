@@ -189,6 +189,12 @@ function TreeBuilder:condition_interrupt(name, condition_func, params)
     return self
 end
 
+function TreeBuilder:event_listen(name, event_name, proxy_property)
+    local node = BT.EventListenNode:new(name, event_name, proxy_property)
+    self:push_node(node)
+    return self
+end
+
 function TreeBuilder:action(name, func, params)
     local node = BT.ActionNode:new(name, func, params)
     self:add_leaf(node)

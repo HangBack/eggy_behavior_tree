@@ -80,6 +80,9 @@ function AIConfig.build_node(builder, config, subtrees)
     elseif config.type == BT.NodeType.CONDITION then
         builder:condition(config.name, config.func, config.params)
         return
+    elseif config.type == BT.NodeType.EVENT_LISTEN then
+        builder:event_listen(config.name, config.event_name, config.proxy_property)
+        return
     elseif config.type == BT.NodeType.SUBTREE_REF then
         -- 处理子树引用装饰器节点
         builder:subtree_ref(config.name, config.subtree_name)

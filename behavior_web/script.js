@@ -94,7 +94,7 @@ class BehaviorTreeEditor {
 
     setupAutoSave() {
         // 监听属性输入变化，实时保存
-        const inputs = ['node-name', 'node-function', 'node-policy', 'node-comment', 'repeater-count', 'timeout-duration', 'retry-count', 'cooldown-duration', 'wait-duration', 'subtree-reference'];
+        const inputs = ['node-name', 'node-function', 'node-policy', 'node-comment', 'repeater-count', 'timeout-duration', 'retry-count', 'cooldown-duration', 'wait-duration', 'subtree-reference', 'event-listen-name', 'event-listen-proxy'];
         inputs.forEach(id => {
             const element = document.getElementById(id);
             element.addEventListener('input', () => {
@@ -163,6 +163,8 @@ class BehaviorTreeEditor {
         const oldCooldownDuration = this.selectedNode.cooldownDuration;
         const oldWaitDuration = this.selectedNode.waitDuration;
         const oldSubtree = this.selectedNode.subtree;
+        const oldEventName = this.selectedNode.eventName;
+        const oldEventProxy = this.selectedNode.eventProxy;
 
         const newName = document.getElementById('node-name').value;
         const newFunc = document.getElementById('node-function').value;
@@ -174,6 +176,8 @@ class BehaviorTreeEditor {
         const newCooldownDuration = document.getElementById('cooldown-duration').value;
         const newWaitDuration = document.getElementById('wait-duration').value;
         const newSubtree = document.getElementById('subtree-reference').value;
+        const newEventName = document.getElementById('event-listen-name').value;
+        const newEventProxy = document.getElementById('event-listen-proxy').value;
 
         // 检查是否有变更
         const hasChanges = oldName !== newName ||
@@ -185,7 +189,9 @@ class BehaviorTreeEditor {
             oldRetryCount !== newRetryCount ||
             oldCooldownDuration !== newCooldownDuration ||
             oldWaitDuration !== newWaitDuration ||
-            oldSubtree !== newSubtree;
+            oldSubtree !== newSubtree ||
+            oldEventName !== newEventName ||
+            oldEventProxy !== newEventProxy;
 
         if (hasChanges) {
             this.selectedNode.name = newName;
@@ -201,6 +207,8 @@ class BehaviorTreeEditor {
                 this.selectedNode.cooldownDuration = newCooldownDuration;
                 this.selectedNode.waitDuration = newWaitDuration;
                 this.selectedNode.subtree = newSubtree;
+                this.selectedNode.eventName = newEventName;
+                this.selectedNode.eventProxy = newEventProxy;
             }
 
             this.updateNodeDisplay();
@@ -1160,13 +1168,23 @@ class BehaviorTreeEditor {
             // 引用子树装饰器显示引用的子树名称
             const subtreeRef = node.subtree || '未设置';
             content = `<p>引用子树: ${subtreeRef}</p>`;
-        } else if (['SEQUENCE', 'FALLBACK', 'PARALLEL'].includes(node.type) ||
-            (node.type === 'DECORATOR' && node.decoratorType !== 'SUBTREE_REF')) {
-            // 其他需要显示子节点数量的节点类型
-            const childCount = this.getChildCount(node.id);
-            content = `<p>子节点: ${childCount}</p>`;
-        } else if (['CONDITION', 'ACTION'].includes(node.type)) {
+        } else if (['CONDITION', 'ACTION'].includes(node.type) || ['CONDITION_INTERRUPT'].includes(node.decoratorType)) {
             content = `<p>函数: ${node.func || '未设置'}</p>`;
+        } else if (['EVENT_LISTEN'].includes(node.decoratorType)) {
+            content = `
+            <p>事件: ${node.eventName || '未设置'}</p>
+            <p>代理: ${node.eventProxy || '未设置'}</p>
+            `;
+        } else if (['TIMEOUT'].includes(node.decoratorType)) {
+            content = `<p>超时: ${node.timeoutDuration || 'null'} 秒</p>`;
+        } else if (['REPEATER'].includes(node.decoratorType)) {
+            content = `<p>重复: ${node.repeaterCount || 'null'} 次</p>`;
+        } else if (['RETRY'].includes(node.decoratorType)) {
+            content = `<p>重试: ${node.retryCount || 'null'} 次</p>`;
+        } else if (['WAIT'].includes(node.decoratorType)) {
+            content = `<p>等待: ${node.waitDuration || 'null'} 秒</p>`;
+        } else if (['COOLDOWN'].includes(node.decoratorType)) {
+            content = `<p>冷却: ${node.cooldownDuration || 'null'} 秒</p>`;
         } else if (['BLACKBOARD'].includes(node.type)) {
             content = `
                 <div class="blackboard-content">
@@ -1186,6 +1204,11 @@ class BehaviorTreeEditor {
                     </div>
                 </div>
             `;
+        } else if (['SEQUENCE', 'FALLBACK', 'PARALLEL'].includes(node.type) ||
+            (node.type === 'DECORATOR')) {
+            // 其他需要显示子节点数量的节点类型
+            const childCount = this.getChildCount(node.id);
+            content = `<p>子节点: ${childCount}</p>`;
         }
 
         // 获取该节点在父节点中的序号
@@ -1207,7 +1230,8 @@ class BehaviorTreeEditor {
                 'UNTIL_SUCCESS': '直到成功',
                 'UNTIL_FAILURE': '直到失败',
                 'SUBTREE_REF': '引用子树',
-                'CONDITION_INTERRUPT': '条件中断节点',
+                'CONDITION_INTERRUPT': '条件中断器',
+                'EVENT_LISTEN': '事件监听器',
             };
             displayTag = decoratorNames[node.decoratorType] || '装饰节点';
         }
@@ -2109,7 +2133,7 @@ class BehaviorTreeEditor {
         // 函数组显示逻辑：条件节点、行为节点需要显示
         const needsFunctionGroup = ['CONDITION', 'ACTION'].includes(this.selectedNode.type) || ['CONDITION_INTERRUPT'].includes(this.selectedNode.decoratorType);
         functionGroup.style.display = needsFunctionGroup ? 'block' : 'none';
-        
+
 
         // 参数组显示逻辑：条件节点、行为节点需要显示参数配置
         const paramsGroup = document.getElementById('node-params-group');
@@ -2146,6 +2170,8 @@ class BehaviorTreeEditor {
         document.getElementById('wait-duration').value = '';
         document.getElementById('subtree-reference').value = '';
         document.getElementById('node-function').value = '';
+        document.getElementById('event-listen-name').value = '';
+        document.getElementById('event-listen-proxy').value = '';
 
         // 清空节点对应的装饰器属性
         this.selectedNode.repeaterCount = '';
@@ -2156,6 +2182,8 @@ class BehaviorTreeEditor {
         this.selectedNode.subtree = '';
         this.selectedNode.params = [];
         this.selectedNode.func = '';
+        this.selectedNode.eventName = '';
+        this.selectedNode.eventProxy = '';
 
         // 保存装饰器类型到节点
         this.selectedNode.decoratorType = decoratorType;
@@ -2213,6 +2241,12 @@ class BehaviorTreeEditor {
                 document.getElementById('subtree-reference-group').style.display = 'block';
                 document.getElementById('subtree-reference').value = this.selectedNode.subtree || '';
                 break;
+            case 'EVENT_LISTEN':
+                document.getElementById('event-listen-name-group').style.display = 'block';
+                document.getElementById('event-listen-name').value = this.selectedNode.eventName || '';
+                document.getElementById('event-listen-proxy-group').style.display = 'block';
+                document.getElementById('event-listen-proxy').value = this.selectedNode.eventProxy || '';
+                break;
         }
 
         // 在装饰器属性填充完成后，检查并应用黑板引用样式
@@ -2228,6 +2262,8 @@ class BehaviorTreeEditor {
         document.getElementById('cooldown-duration-group').style.display = 'none';
         document.getElementById('wait-duration-group').style.display = 'none';
         document.getElementById('subtree-reference-group').style.display = 'none';
+        document.getElementById('event-listen-name-group').style.display = 'none';
+        document.getElementById('event-listen-proxy-group').style.display = 'none';
     }
 
     updateNodeDisplay() {
@@ -2540,6 +2576,16 @@ class BehaviorTreeEditor {
         if (node.retryCount) {
             const retryValue = this.formatBlackboardReference(node.retryCount, true);
             code += `,\n    max_retries = ${retryValue}`;
+        }
+
+        if (node.eventName) {
+            const eventName = this.formatBlackboardReference(node.eventName, true);
+            code += `,\n    event_name = ${JSON.stringify(eventName)}`;
+        }
+
+        if (node.eventProxy) {
+            const eventProxy = this.formatBlackboardReference(node.eventProxy, true);
+            code += `,\n    proxy_property = ${JSON.stringify(eventProxy)}`;
         }
 
         // 处理引用子树装饰器的函数
@@ -4373,7 +4419,7 @@ class BehaviorTreeEditor {
     // 更新所有输入框的黑板引用样式
     updateBlackboardReferences() {
         // 获取所有相关输入框（除了节点名称、位置、节点类型、注释说明）
-        const inputs = document.querySelectorAll('#node-function, #node-policy, #repeater-count, #timeout-duration, #retry-count, #cooldown-duration, #subtree-reference, #wait-duration');
+        const inputs = document.querySelectorAll('#node-function, #node-policy, #repeater-count, #timeout-duration, #retry-count, #cooldown-duration, #subtree-reference, #wait-duration, #event-listen-name, #event-listen-proxy');
 
         inputs.forEach(input => {
             this.updateInputBlackboardStyle(input);
@@ -4845,7 +4891,7 @@ bte = new BehaviorTreeEditor();
 
 // 为所有相关输入框添加黑板引用检测
 document.addEventListener('DOMContentLoaded', () => {
-    const inputs = document.querySelectorAll('#node-function, #node-policy, #repeater-count, #timeout-duration, #retry-count, #cooldown-duration, #subtree-reference, #wait-duration');
+    const inputs = document.querySelectorAll('#node-function, #node-policy, #repeater-count, #timeout-duration, #retry-count, #cooldown-duration, #subtree-reference, #wait-duration, #event-listen-name, #event-listen-proxy');
 
     inputs.forEach(input => {
         input.addEventListener('input', () => {
