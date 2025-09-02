@@ -2200,6 +2200,12 @@ class BehaviorTreeEditor {
                 document.getElementById('wait-duration-group').style.display = 'block';
                 document.getElementById('wait-duration').value = this.selectedNode.waitDuration || '';
                 break;
+            case 'CONDITION_INTERRUPT':
+                document.getElementById('function-group').style.display = 'block';
+                document.getElementById('node-function').value = this.selectedNode.waitDuration || '';
+                document.getElementById('node-params-group').style.display = 'block';
+                this.renderParamsList();
+                break;
             case 'SUBTREE_REF':
                 document.getElementById('subtree-reference-group').style.display = 'block';
                 document.getElementById('subtree-reference').value = this.selectedNode.subtree || '';
@@ -4752,7 +4758,7 @@ class BehaviorTreeEditor {
     // 添加参数
     addParameter() {
         console.log(!this.selectedNode, !['CONDITION', 'ACTION'].includes(this.selectedNode.type), !['CONDITION_INTERRUPT'].includes(this.selectedNode.decoratorType));
-        
+
         if (!(this.selectedNode && (['CONDITION', 'ACTION'].includes(this.selectedNode.type) || ['CONDITION_INTERRUPT'].includes(this.selectedNode.decoratorType)))) {
             return;
         }
